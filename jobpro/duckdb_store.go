@@ -1,4 +1,4 @@
-package jobprocessor
+package jobpro
 
 import (
 	"database/sql"
@@ -71,7 +71,7 @@ func (s *DuckDBStore) initialize() error {
 }
 
 // SaveJob persists a job definition
-func (s *DuckDBStore) SaveJob(job JobDefinition) error {
+func (s *DuckDBStore) SaveJob(job JobDef) error {
 	_, err := s.db.Exec(`
 		INSERT INTO jobs (
 			job_id, job_name, schedule_type, schedule, 
@@ -95,26 +95,26 @@ func (s *DuckDBStore) SaveJob(job JobDefinition) error {
 }
 
 // GetJob retrieves a job definition by ID
-func (s *DuckDBStore) GetJob(id string) (JobDefinition, error) {
+func (s *DuckDBStore) GetJob(id string) (JobDef, error) {
 	row := s.db.QueryRow(`
 		SELECT job_id, job_name, schedule_type, schedule, 
 		       next_run_time, status, created_at, updated_at
 		FROM jobs WHERE job_id = ?
 	`, id)
 
-	var job JobDefinition
+	var job JobDef
 	err := row.Scan(
 		&job.JobID, &job.JobName, &job.SchedType, &job.Schedule,
 		&job.NextRunTime, &job.Status, &job.CreatedAt, &job.UpdatedAt,
 	)
 	if err != nil {
-		return JobDefinition{}, fmt.Errorf("failed to get job: %w", err)
+		return JobDef{}, fmt.Errorf("failed to get job: %w", err)
 	}
 	return job, nil
 }
 
 // ListJobs retrieves all job definitions with optional filters
-func (s *DuckDBStore) ListJobs(status JobStatus, schedType ScheduleType) ([]JobDefinition, error) {
+func (s *DuckDBStore) ListJobs(status JobStatus, schedType FreqType) ([]JobDef, error) {
 	query := `
 		SELECT job_id, job_name, schedule_type, schedule, 
 		       next_run_time, status, created_at, updated_at
@@ -148,9 +148,9 @@ func (s *DuckDBStore) ListJobs(status JobStatus, schedType ScheduleType) ([]JobD
 	}
 	defer rows.Close()
 
-	jobs := []JobDefinition{}
+	jobs := []JobDef{}
 	for rows.Next() {
-		var job JobDefinition
+		var job JobDef
 		err := rows.Scan(
 			&job.JobID, &job.JobName, &job.SchedType, &job.Schedule,
 			&job.NextRunTime, &job.Status, &job.CreatedAt, &job.UpdatedAt,

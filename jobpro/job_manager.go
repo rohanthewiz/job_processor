@@ -1,4 +1,4 @@
-package jobprocessor
+package jobpro
 
 import (
 	"context"
@@ -12,7 +12,7 @@ import (
 	"github.com/rohanthewiz/serr"
 )
 
-// DefaultJobManager implements the JobManager interface
+// DefaultJobManager implements the JobMgr interface
 type DefaultJobManager struct {
 	store       JobStore
 	cron        *cron.Cron
@@ -64,14 +64,15 @@ func (m *DefaultJobManager) processResults() {
 
 			// For periodic jobs that completed, update next run time if not already scheduled via cron
 			jobDef, err := m.store.GetJob(result.JobID)
-			if err == nil && jobDef.SchedType == SchedulePeriodic {
+			if err == nil && jobDef.SchedType == Periodic {
 				m.mu.RLock()
 				_, exists := m.jobEntries[result.JobID]
 				m.mu.RUnlock()
 
 				if !exists {
 					// If not scheduled via cron (e.g., a manually triggered run), calculate next run
-					scheduler, err := cron.NewParser(cron.Second | cron.Minute | cron.Hour | cron.Dom | cron.Month | cron.Dow).Parse(jobDef.Schedule)
+					scheduler, err := cron.NewParser(cron.Second | cron.Minute | cron.Hour | cron.Dom |
+						cron.Month | cron.Dow).Parse(jobDef.Schedule)
 					if err == nil {
 						nextRun := scheduler.Next(time.Now())
 						if err := m.store.UpdateNextRunTime(result.JobID, nextRun); err != nil {
@@ -113,7 +114,7 @@ func (m *DefaultJobManager) CreateJob(job Job, schedule string) (string, error) 
 
 	// Determine next run time
 	var nextRun time.Time
-	if job.Type() == SchedulePeriodic && schedule != "" {
+	if job.Type() == Periodic && schedule != "" {
 		// Parse the cron schedule
 		scheduler, err := cron.NewParser(cron.Second | cron.Minute | cron.Hour | cron.Dom | cron.Month | cron.Dow).Parse(schedule)
 		if err != nil {
@@ -121,7 +122,7 @@ func (m *DefaultJobManager) CreateJob(job Job, schedule string) (string, error) 
 		}
 		nextRun = scheduler.Next(time.Now())
 
-	} else if job.Type() == ScheduleOneTime {
+	} else if job.Type() == OneTime {
 		// For one-time jobs, use the current time if no specific time is provided
 		if schedule == "" {
 			nextRun = time.Now()
@@ -136,7 +137,7 @@ func (m *DefaultJobManager) CreateJob(job Job, schedule string) (string, error) 
 	}
 
 	// Create job definition
-	jobDef := JobDefinition{
+	jobDef := JobDef{
 		JobID:       jobID,
 		JobName:     job.Name(),
 		SchedType:   job.Type(),
@@ -190,7 +191,7 @@ func (m *DefaultJobManager) StartJob(id string) error {
 	}
 
 	// If it's a periodic job, schedule it with cron
-	if job.Type() == SchedulePeriodic {
+	if job.Type() == Periodic {
 		jobDef, err := m.store.GetJob(id)
 		if err != nil {
 			return serr.Wrap(err, "failed to get job details")
@@ -261,7 +262,7 @@ func (m *DefaultJobManager) executeJob(id string) {
 	select {
 	case m.results <- result:
 		// Result queued for processing
-	default:
+	default: // How does default work in a select statement
 		// Results channel is full, log and continue
 		log.Printf("Results channel full, dropping result for job %s", id)
 		m.wg.Done() // Still mark as done even if we couldn't queue the result
@@ -355,7 +356,7 @@ func (m *DefaultJobManager) ResumeJob(id string) error {
 	}
 
 	// If it's a periodic job, reschedule with cron
-	if job.Type() == SchedulePeriodic {
+	if job.Type() == Periodic {
 		_, wasScheduled := m.jobEntries[id]
 		if wasScheduled {
 			entryID, err := m.cron.AddFunc(jobDef.Schedule, func() {

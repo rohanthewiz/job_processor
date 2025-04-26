@@ -1,8 +1,7 @@
 package main
 
 import (
-	"fmt"
-	"job_processor/jobprocessor"
+	"job_processor/jobpro"
 	"log"
 	"os"
 	"os/signal"
@@ -44,14 +43,15 @@ func main() {
 		dbPath = "jobs.duckdb"
 	}
 
-	store, err := jobprocessor.NewDuckDBStore(dbPath)
+	store, err := jobpro.NewDuckDBStore(dbPath)
 	if err != nil {
-		log.Fatalf("Failed to initialize DuckDB store: %v", err)
+		logger.LogErr(err, "Failed to initialize DuckDB store")
+		os.Exit(1)
 	}
 	defer store.Close()
 
 	// Initialize job manager
-	manager := jobprocessor.NewJobManager(store)
+	manager := jobpro.NewJobManager(store)
 
 	// Setup shutdown signal handling
 	sigChan := make(chan os.Signal, 1)
@@ -87,12 +87,56 @@ func main() {
 }
 
 // registerExampleJobs adds some example jobs to the manager
-func registerExampleJobs(manager jobprocessor.JobManager) error {
-	// Create a one-time job that runs for 5 seconds with 90% success probability
-	oneTimeJob := jobprocessor.NewDummyJob(
+func registerExampleJobs(manager jobpro.JobMgr) error {
+	periodicJob := jobpro.NewPeriodicJob(
+		"periodic-2",
+		"Periodic Logging Job",
+		0, 0, func() error {
+			log.Println("Starting periodic action")
+			return nil
+		},
+	)
+
+	periodicID, err := manager.CreateJob(periodicJob, "*/8 * * * * *") // Run every minute
+	if err != nil {
+		return serr.F("failed to create periodic job: %w", err)
+	}
+	log.Printf("Created periodic job with ID: %s", periodicID)
+
+	// Start the periodic job
+	if err := manager.StartJob(periodicID); err != nil {
+		logger.LogErr(serr.Wrap(err, "Failed to start periodic job"))
+	}
+
+	// // Create a periodic job that runs every minute
+	// periodicJob := jobpro.NewLoggingJob(
+	// 	"periodic-1",
+	// 	"Periodic Logging Job",
+	// 	jobpro.Periodic,
+	// 	20*time.Second,
+	// 	[]time.Duration{5 * time.Second},
+	// )
+	//
+	// periodicID, err := manager.CreateJob(periodicJob, "0 */1 * * * *") // Run every minute
+	// if err != nil {
+	// 	return serr.F("failed to create periodic job: %w", err)
+	// }
+	// log.Printf("Created periodic job with ID: %s", periodicID)
+	//
+	// // Start the periodic job
+	// if err := manager.StartJob(periodicID); err != nil {
+	// 	logger.LogErr(serr.Wrap(err, "Failed to start periodic job"))
+	// }
+	//
+
+	return nil
+}
+
+/*	// Create a one-time job that runs for 5 seconds with 90% success probability
+	oneTimeJob := jobpro.NewDummyJob(
 		"one-time-1",
 		"One-time Test Job",
-		jobprocessor.ScheduleOneTime,
+		jobpro.OneTime,
 		5*time.Second,
 		0.9,
 	)
@@ -107,26 +151,4 @@ func registerExampleJobs(manager jobprocessor.JobManager) error {
 	if err := manager.StartJob(oneTimeID); err != nil {
 		log.Printf("Failed to start one-time job: %v", err)
 	}
-
-	// Create a periodic job that runs every minute
-	periodicJob := jobprocessor.NewLoggingJob(
-		"periodic-1",
-		"Periodic Logging Job",
-		jobprocessor.SchedulePeriodic,
-		30*time.Second,
-		[]time.Duration{1 * time.Second, 5 * time.Second, 10 * time.Second},
-	)
-
-	periodicID, err := manager.CreateJob(periodicJob, "0 */1 * * * *") // Run every minute
-	if err != nil {
-		return serr.F("failed to create periodic job: %w", err)
-	}
-	log.Printf("Created periodic job with ID: %s", periodicID)
-
-	// Start the periodic job
-	if err := manager.StartJob(periodicID); err != nil {
-		logger.LogErr(serr.Wrap(err, "Failed to start periodic job"))
-	}
-
-	return nil
-}
+*/

@@ -28,7 +28,7 @@ A lightweight, flexible job scheduling and processing system written in Go.
 ### Installation
 
 ```bash
-go get github.com/your-username/jobprocessor
+go get github.com/your-username/jobpro
 ```
 
 ### Basic Usage
@@ -161,7 +161,7 @@ status, err := manager.GetJobStatus(jobID)
 The package includes a structured error handling system:
 
 ```go
-import "github.com/your-username/jobprocessor/serr"
+import "github.com/your-username/jobpro/serr"
 
 // Create a new error
 err := serr.New("something went wrong")

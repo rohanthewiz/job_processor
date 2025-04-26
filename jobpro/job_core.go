@@ -1,4 +1,4 @@
-package jobprocessor
+package jobpro
 
 import (
 	"context"
@@ -25,12 +25,12 @@ const (
 	StatusFailed   JobStatus = "failed"
 )
 
-// ScheduleType defines whether a job runs once or periodically
-type ScheduleType string
+// FreqType defines whether a job runs once or periodically
+type FreqType string
 
 const (
-	ScheduleOneTime  ScheduleType = "onetime"
-	SchedulePeriodic ScheduleType = "periodic"
+	OneTime  FreqType = "onetime"
+	Periodic FreqType = "periodic"
 )
 
 // Job defines the interface that all jobs must implement
@@ -42,19 +42,19 @@ type Job interface {
 	// Name returns a human-readable name for this job
 	Name() string
 	// Type returns the schedule type (onetime or periodic)
-	Type() ScheduleType
+	Type() FreqType
 }
 
-// JobDefinition contains metadata about a job
-type JobDefinition struct {
-	JobID       string       // Unique identifier
-	JobName     string       // Human-readable name
-	SchedType   ScheduleType // Type of schedule
-	Schedule    string       // Cron expression for periodic jobs
-	NextRunTime time.Time    // When to next run this job
-	Status      JobStatus    // Current status
-	CreatedAt   time.Time    // When the job was created
-	UpdatedAt   time.Time    // When the job was last updated
+// JobDef contains metadata about a job
+type JobDef struct {
+	JobID       string    // Unique identifier
+	JobName     string    // Human-readable name
+	SchedType   FreqType  // Type of schedule
+	Schedule    string    // Cron expression for periodic jobs
+	NextRunTime time.Time // When to next run this job
+	Status      JobStatus // Current status
+	CreatedAt   time.Time // When the job was created
+	UpdatedAt   time.Time // When the job was last updated
 }
 
 // JobResult contains the outcome of a job execution
@@ -71,11 +71,11 @@ type JobResult struct {
 // JobStore defines the interface for job persistence
 type JobStore interface {
 	// SaveJob persists a job definition
-	SaveJob(job JobDefinition) error
+	SaveJob(job JobDef) error
 	// GetJob retrieves a job definition by ID
-	GetJob(id string) (JobDefinition, error)
+	GetJob(id string) (JobDef, error)
 	// ListJobs retrieves all job definitions with optional filters
-	ListJobs(status JobStatus, schedType ScheduleType) ([]JobDefinition, error)
+	ListJobs(status JobStatus, freqType FreqType) ([]JobDef, error)
 	// UpdateJobStatus updates the status of a job
 	UpdateJobStatus(id string, status JobStatus) error
 	// UpdateNextRunTime updates when a job should next run
@@ -88,8 +88,8 @@ type JobStore interface {
 	GetJobResults(jobID string, limit int) ([]JobResult, error)
 }
 
-// JobManager handles the lifecycle of jobs
-type JobManager interface {
+// JobMgr handles the lifecycle of jobs
+type JobMgr interface {
 	// CreateJob adds a new job to the system
 	CreateJob(job Job, schedule string) (string, error)
 	// StartJob begins execution of a job
