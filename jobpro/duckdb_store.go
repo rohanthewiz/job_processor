@@ -67,6 +67,14 @@ func (s *DuckDBStore) initialize() error {
 		return fmt.Errorf("failed to create job_results table: %w", err)
 	}
 
+	// Create sequence for job_results result_id
+	_, err = s.db.Exec(`
+		CREATE SEQUENCE IF NOT EXISTS job_results_id_seq
+	`)
+	if err != nil {
+		return fmt.Errorf("failed to create job_results sequence: %w", err)
+	}
+
 	return nil
 }
 
@@ -215,9 +223,9 @@ func (s *DuckDBStore) RecordJobResult(result JobResult) error {
 
 	_, err := s.db.Exec(`
 		INSERT INTO job_results (
-			job_id, start_time, end_time, duration_ms, 
+			result_id, job_id, start_time, end_time, duration_ms, 
 			status, success_msg, error_msg
-		) VALUES (?, ?, ?, ?, ?, ?, ?)
+		) VALUES (nextval('job_results_id_seq'), ?, ?, ?, ?, ?, ?, ?)
 	`,
 		result.JobID, result.StartTime, result.EndTime, durationMs,
 		result.Status, result.SuccessMsg, result.ErrorMsg,
