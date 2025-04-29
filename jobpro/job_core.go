@@ -91,7 +91,7 @@ type JobStore interface {
 // JobMgr handles the lifecycle of jobs
 type JobMgr interface {
 	// CreateJob adds a new job to the system
-	CreateJob(job Job, schedule string) (string, error)
+	RegisterJob(job Job, schedule string) (string, error)
 	// StartJob begins execution of a job
 	StartJob(id string) error
 	// StopJob halts execution of a job

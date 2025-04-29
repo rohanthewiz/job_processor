@@ -93,7 +93,7 @@ func (m *DefaultJobManager) processResults() {
 }
 
 // CreateJob adds a new job to the system
-func (m *DefaultJobManager) CreateJob(job Job, schedule string) (string, error) {
+func (m *DefaultJobManager) RegisterJob(job Job, schedule string) (string, error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 

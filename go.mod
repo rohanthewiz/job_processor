@@ -23,6 +23,8 @@ require (
 	github.com/klauspost/compress v1.17.11 // indirect
 	github.com/klauspost/cpuid/v2 v2.2.9 // indirect
 	github.com/pierrec/lz4/v4 v4.1.22 // indirect
+	github.com/rohanthewiz/element v0.4.5-0.20250428152202-fe1b860cdbbe // indirect
+	github.com/rohanthewiz/rweb v0.1.15-0.20250424002240-948f5f48a8c9 // indirect
 	github.com/sirupsen/logrus v1.9.3 // indirect
 	github.com/zeebo/xxh3 v1.0.2 // indirect
 	golang.org/x/exp v0.0.0-20250128182459-e0ece0dbea4c // indirect
