@@ -1,12 +1,15 @@
 package main
 
 import (
+	"fmt"
 	"job_processor/jobpro"
 	"job_processor/shutdown"
 	"log"
+	"os"
 	"time"
 
 	"github.com/rohanthewiz/logger"
+	"github.com/rohanthewiz/rweb"
 	"github.com/rohanthewiz/serr"
 )
 
@@ -18,7 +21,6 @@ func main() {
 
 	// done channel will signal when shutdown complete
 	done := make(chan struct{})
-
 	shutdown.InitShutdownSvc(done)
 
 	// Close the job manager on shutdown
@@ -36,6 +38,8 @@ func main() {
 	if err := registerExampleJobs(manager); err != nil {
 		logger.LogErr(err, "Failed to register example jobs")
 	}
+
+	go WebServe()
 
 	// Block until done signal
 	<-done
@@ -87,4 +91,21 @@ func registerExampleJobs(manager jobpro.JobMgr) error {
 	//
 
 	return nil
+}
+
+func WebServe() {
+	s := rweb.NewServer(rweb.ServerOptions{
+		Address: fmt.Sprintf(":%s", "8800"),
+		Verbose: true,
+	})
+
+	s.Use(rweb.RequestInfo)
+
+	s.Get("/", rootHandler)
+
+	log.Println(s.Run())
+}
+
+func rootHandler(ctx rweb.Context) error {
+	return ctx.WriteJSON(map[string]interface{}{"response": "OK", "ENV": os.Getenv("ENV")})
 }
