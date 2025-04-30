@@ -445,6 +445,23 @@ func (m *DefaultJobManager) LoadJobs() error {
 	return nil
 }
 
+// ListJobs in the store
+func (m *DefaultJobManager) ListJobs() (jobs []JobDef, err error) {
+	jobs, err = m.store.ListJobs("", "")
+	if err != nil {
+		return jobs, serr.Wrap(err, "error listing jobs")
+	}
+
+	log.Printf("Loaded %d jobs from store", len(jobs))
+
+	for _, job := range jobs {
+		fmt.Printf("ID: %s %s - %s, Created: %s, Updated: %s, NextRun: %s\n", job.JobID, job.JobName,
+			job.Status, job.CreatedAt, job.UpdatedAt, job.NextRunTime.Format(time.RFC3339))
+	}
+
+	return
+}
+
 // Shutdown gracefully stops all running jobs
 func (m *DefaultJobManager) Shutdown(timeout time.Duration) error {
 	m.mu.Lock()

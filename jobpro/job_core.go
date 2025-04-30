@@ -102,6 +102,8 @@ type JobMgr interface {
 	ResumeJob(id string) error
 	// DeleteJob removes a job from the system
 	DeleteJob(id string) error
+	// ListJobs lists all jobs
+	ListJobs() ([]JobDef, error)
 	// GetJobStatus retrieves the current status of a job
 	GetJobStatus(id string) (JobStatus, error)
 	// Shutdown gracefully stops all running jobs
