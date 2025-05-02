@@ -20,13 +20,13 @@ type shutdownHooks struct {
 
 var hooks shutdownHooks
 
-func RegisterShutdownHook(fn HookFunc) {
+func RegisterHook(fn HookFunc) {
 	hooks.lock.Lock()
 	defer hooks.lock.Unlock()
 	hooks.Hooks = append(hooks.Hooks, fn)
 }
 
-func InitShutdownSvc(done chan struct{}) (sigChan chan os.Signal) {
+func InitService(done chan struct{}) (sigChan chan os.Signal) {
 	// Setup shutdown signal handling
 	sigChan = make(chan os.Signal, 1)
 	signal.Notify(sigChan, syscall.SIGINT, syscall.SIGTERM)

@@ -17,7 +17,7 @@ type DefaultJobManager struct {
 	store       JobStore
 	cron        *cron.Cron
 	jobs        map[string]Job
-	jobEntries  map[string]cron.EntryID
+	cronEntries map[string]cron.EntryID
 	runningJobs map[string]context.CancelFunc
 	mu          sync.RWMutex
 	wg          sync.WaitGroup
@@ -34,7 +34,7 @@ func NewJobManager(store JobStore) *DefaultJobManager {
 		store:       store,
 		cron:        cronScheduler,
 		jobs:        make(map[string]Job),
-		jobEntries:  make(map[string]cron.EntryID),
+		cronEntries: make(map[string]cron.EntryID),
 		runningJobs: make(map[string]context.CancelFunc),
 		results:     make(chan JobResult, 100), // Buffer for job results
 	}
@@ -63,13 +63,14 @@ func (m *DefaultJobManager) processResults() {
 			}
 
 			// For periodic jobs that completed, update next run time if not already scheduled via cron
+			// Are we to assume that if the job is already scheduled in cron, we cannot update the next run time?
 			jobDef, err := m.store.GetJob(result.JobID)
 			if err == nil && jobDef.SchedType == Periodic {
 				m.mu.RLock()
-				_, exists := m.jobEntries[result.JobID]
+				_, inCron := m.cronEntries[result.JobID]
 				m.mu.RUnlock()
 
-				if !exists {
+				if !inCron { // ~ this is a really weird case as why would the job have a schedule and not be in cron?
 					// If not scheduled via cron (e.g., a manually triggered run), calculate next run
 					scheduler, err := cron.NewParser(cron.Second | cron.Minute | cron.Hour | cron.Dom |
 						cron.Month | cron.Dow).Parse(jobDef.Schedule)
@@ -78,6 +79,7 @@ func (m *DefaultJobManager) processResults() {
 						if err := m.store.UpdateNextRunTime(result.JobID, nextRun); err != nil {
 							log.Printf("Error updating next run time for %s: %v", result.JobID, err)
 						}
+						// TODO what about actually executing the job again in cron?
 					}
 				}
 			}
@@ -118,7 +120,7 @@ func (m *DefaultJobManager) RegisterJob(job Job, schedule string) (string, error
 		// Parse the cron schedule
 		scheduler, err := cron.NewParser(cron.Second | cron.Minute | cron.Hour | cron.Dom | cron.Month | cron.Dow).Parse(schedule)
 		if err != nil {
-			return "", serr.F("invalid schedule format: %w", err)
+			return "", serr.F("unable to parse schedule: %w", err)
 		}
 		nextRun = scheduler.Next(time.Now())
 
@@ -130,7 +132,7 @@ func (m *DefaultJobManager) RegisterJob(job Job, schedule string) (string, error
 			// Parse the schedule as a specific time
 			parsedTime, err := time.Parse(time.RFC3339, schedule)
 			if err != nil {
-				return "", serr.F("invalid time format for one-time job: %w", err)
+				return "", serr.F("invalid time format for one-time job (should be time.RFC3339): %w", err)
 			}
 			nextRun = parsedTime
 		}
@@ -198,14 +200,14 @@ func (m *DefaultJobManager) StartJob(id string) error {
 		}
 
 		// Schedule with cron if not already scheduled
-		if _, exists := m.jobEntries[id]; !exists {
+		if _, exists := m.cronEntries[id]; !exists {
 			entryID, err := m.cron.AddFunc(jobDef.Schedule, func() {
 				m.executeJob(id)
 			})
 			if err != nil {
 				return serr.Wrap(err, "failed to schedule job")
 			}
-			m.jobEntries[id] = entryID
+			m.cronEntries[id] = entryID
 		}
 	} else {
 		// For one-time jobs, just execute it once
@@ -280,9 +282,9 @@ func (m *DefaultJobManager) StopJob(id string) error {
 	}
 
 	// If it's a periodic job, remove from cron
-	if entryID, exists := m.jobEntries[id]; exists {
+	if entryID, exists := m.cronEntries[id]; exists {
 		m.cron.Remove(entryID)
-		delete(m.jobEntries, id)
+		delete(m.cronEntries, id)
 	}
 
 	// If it's running, cancel its context
@@ -311,9 +313,9 @@ func (m *DefaultJobManager) PauseJob(id string) error {
 	}
 
 	// If it's a periodic job, remove from cron but keep the entry ID
-	if entryID, exists := m.jobEntries[id]; exists {
+	if entryID, exists := m.cronEntries[id]; exists {
 		m.cron.Remove(entryID)
-		// We keep the entry in the map to remember it was scheduled
+		// We keep the entry in the m.cronEntries map to remember it was scheduled
 	}
 
 	// If it's running, we can't pause it mid-execution
@@ -357,7 +359,7 @@ func (m *DefaultJobManager) ResumeJob(id string) error {
 
 	// If it's a periodic job, reschedule with cron
 	if job.Type() == Periodic {
-		_, wasScheduled := m.jobEntries[id]
+		_, wasScheduled := m.cronEntries[id]
 		if wasScheduled {
 			entryID, err := m.cron.AddFunc(jobDef.Schedule, func() {
 				m.executeJob(id)
@@ -365,7 +367,7 @@ func (m *DefaultJobManager) ResumeJob(id string) error {
 			if err != nil {
 				return fmt.Errorf("failed to reschedule job: %w", err)
 			}
-			m.jobEntries[id] = entryID
+			m.cronEntries[id] = entryID
 		}
 	}
 
@@ -383,9 +385,9 @@ func (m *DefaultJobManager) DeleteJob(id string) error {
 	}
 
 	// If it's a periodic job, remove from cron
-	if entryID, exists := m.jobEntries[id]; exists {
+	if entryID, exists := m.cronEntries[id]; exists {
 		m.cron.Remove(entryID)
-		delete(m.jobEntries, id)
+		delete(m.cronEntries, id)
 	}
 
 	// If it's running, cancel it
@@ -446,18 +448,13 @@ func (m *DefaultJobManager) LoadJobs() error {
 }
 
 // ListJobs in the store
-func (m *DefaultJobManager) ListJobs() (jobs []JobDef, err error) {
-	jobs, err = m.store.ListJobs("", "")
+func (m *DefaultJobManager) ListJobs() (jobs []DisplayResults, err error) {
+	jobs, err = m.store.GetDisplayResults(100)
 	if err != nil {
 		return jobs, serr.Wrap(err, "error listing jobs")
 	}
 
-	log.Printf("Loaded %d jobs from store", len(jobs))
-
-	for _, job := range jobs {
-		fmt.Printf("ID: %s %s - %s, Created: %s, Updated: %s, NextRun: %s\n", job.JobID, job.JobName,
-			job.Status, job.CreatedAt, job.UpdatedAt, job.NextRunTime.Format(time.RFC3339))
-	}
+	log.Printf("Loaded %d jobs results from store", len(jobs))
 
 	return
 }

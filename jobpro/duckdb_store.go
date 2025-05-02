@@ -6,6 +6,7 @@ import (
 	"time"
 
 	_ "github.com/marcboeker/go-duckdb"
+	"github.com/rohanthewiz/serr"
 )
 
 // DuckDBStore implements JobStore using DuckDB
@@ -263,6 +264,64 @@ func (s *DuckDBStore) GetJobResults(jobID string, limit int) ([]JobResult, error
 			return nil, fmt.Errorf("failed to scan result row: %w", err)
 		}
 		result.Duration = time.Duration(durationMs) * time.Millisecond
+		results = append(results, result)
+	}
+
+	return results, nil
+}
+
+type DisplayResults struct {
+	JobID        string
+	JobName      string
+	FreqType     string
+	JobState     string
+	CreatedAt    time.Time
+	UpdatedAt    time.Time
+	ResultId     int64
+	StartTime    time.Time
+	Duration     time.Duration
+	ResultStatus string
+	ErrorMsg     string
+}
+
+// GetJobResultsForTable retrieves historical results for a job
+func (s *DuckDBStore) GetDisplayResults(limit int) ([]DisplayResults, error) {
+	rows, err := s.db.Query(`
+with results as (
+  select result_id, job_id, start_time, duration_ms, status, error_msg
+  from job_results
+  )
+  select j.job_id, j.job_name, case when j.schedule is null or j.schedule = '' then 'one-time' else j.schedule end as frequency, j.status,
+         j.created_at, j.updated_at, r.result_id, r.start_time, r.duration_ms, r.status result_status, r.error_msg
+  from results r join jobs j on r.job_id = j.job_id
+  ORDER BY j.created_at, r.start_time DESC NULLS LAST
+  LIMIT ?`, limit)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get job results: %w", err)
+	}
+	defer rows.Close()
+
+	results := make([]DisplayResults, 0, 32)
+
+	// count := 0
+
+	for rows.Next() {
+		var result DisplayResults
+		var durationMs int64 // duration gets special handling
+
+		err = rows.Scan(
+			&result.JobID, &result.JobName, &result.FreqType, &result.JobState, &result.CreatedAt, &result.UpdatedAt,
+			&result.ResultId, &result.StartTime, &durationMs,
+			&result.ResultStatus, &result.ErrorMsg,
+		)
+		if err != nil {
+			return nil, serr.Wrap(err, "failed to scan result row")
+		}
+
+		result.Duration = time.Duration(durationMs) * time.Millisecond
+		// if count < 15 {
+		// 	fmt.Printf("**-> result %d -> %#v\n", count, result)
+		// }
 		results = append(results, result)
 	}
 

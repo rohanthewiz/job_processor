@@ -86,6 +86,7 @@ type JobStore interface {
 	RecordJobResult(result JobResult) error
 	// GetJobResults retrieves historical results for a job
 	GetJobResults(jobID string, limit int) ([]JobResult, error)
+	GetDisplayResults(limit int) ([]DisplayResults, error)
 }
 
 // JobMgr handles the lifecycle of jobs
@@ -103,7 +104,7 @@ type JobMgr interface {
 	// DeleteJob removes a job from the system
 	DeleteJob(id string) error
 	// ListJobs lists all jobs
-	ListJobs() ([]JobDef, error)
+	ListJobs() ([]DisplayResults, error)
 	// GetJobStatus retrieves the current status of a job
 	GetJobStatus(id string) (JobStatus, error)
 	// Shutdown gracefully stops all running jobs
