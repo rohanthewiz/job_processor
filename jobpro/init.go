@@ -7,7 +7,11 @@ import (
 	"github.com/rohanthewiz/logger"
 )
 
-func InitJobPro() (manager *DefaultJobManager, store *DuckDBStore) {
+// Init initializes the job processor with a DuckDB store and a job manager
+// TODO: Pass duckdb path as an argument instead of using env var.
+//
+//	If dbPath is empty, use as in-memory database
+func Init() (manager *DefaultJobManager, store *DuckDBStore) {
 	log.Println("Starting job processor")
 
 	// Initialize DuckDB store

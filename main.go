@@ -14,7 +14,7 @@ import (
 )
 
 func main() {
-	manager, store := jobpro.InitJobPro()
+	manager, store := jobpro.Init()
 	defer func() {
 		_ = store.Close()
 	}()
