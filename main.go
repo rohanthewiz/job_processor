@@ -14,7 +14,7 @@ import (
 )
 
 func main() {
-	manager, store := jobpro.Init()
+	manager, store := jobpro.Init("jobs.ddb")
 	defer func() {
 		_ = store.Close()
 	}()
@@ -52,6 +52,7 @@ func main() {
 		s.Get("/show-jobs", func(ctx rweb.Context) error {
 			jobs, err := manager.ListJobs()
 			if err != nil {
+				logger.LogErr(err, "Failed to list jobs")
 				return serr.Wrap(err)
 			}
 			return ctx.WriteHTML(renderJobsTable(jobs))
@@ -77,7 +78,7 @@ func registerJobs(manager jobpro.JobMgr) error {
 		},
 	)
 
-	periodicID, err := manager.RegisterJob(periodicJob, "*/5 * * * * *")
+	periodicID, err := manager.RegisterJob(periodicJob, "*/10 * * * * *")
 	if err != nil {
 		return serr.Wrap(err, "failed to create periodic job")
 	}

@@ -270,11 +270,11 @@ func (s *DuckDBStore) GetJobResults(jobID string, limit int) ([]JobResult, error
 	return results, nil
 }
 
-type DisplayResults struct {
+type JobRun struct {
 	JobID        string
 	JobName      string
 	FreqType     string
-	JobState     string
+	JobStatus    string
 	CreatedAt    time.Time
 	UpdatedAt    time.Time
 	ResultId     int64
@@ -284,33 +284,41 @@ type DisplayResults struct {
 	ErrorMsg     string
 }
 
-// GetJobResultsForTable retrieves historical results for a job
-func (s *DuckDBStore) GetDisplayResults(limit int) ([]DisplayResults, error) {
+// GetJobRuns retrieves historical results for a job
+// Set limit to 0 for all
+func (s *DuckDBStore) GetJobRuns(limit int) ([]JobRun, error) {
 	rows, err := s.db.Query(`
-with results as (
-  select result_id, job_id, start_time, duration_ms, status, error_msg
-  from job_results
-  )
-  select j.job_id, j.job_name, case when j.schedule is null or j.schedule = '' then 'one-time' else j.schedule end as frequency, j.status,
-         j.created_at, j.updated_at, r.result_id, r.start_time, r.duration_ms, r.status result_status, r.error_msg
-  from results r join jobs j on r.job_id = j.job_id
-  ORDER BY j.created_at, r.start_time DESC NULLS LAST
+drop table if exists runs;
+create temp table runs as (with results as (
+       select result_id, job_id, start_time, duration_ms, status, error_msg
+       from job_results
+       )
+       select j.job_id, null job_name, null frequency, null status,
+              j.created_at, null updated_at,
+               r.result_id, r.start_time, r.duration_ms, r.status result_status, r.error_msg
+       from results r join jobs j on r.job_id = j.job_id
+       union all
+       select j.job_id, j.job_name, case when j.schedule is null or j.schedule = '' then 'one-time' else j.schedule end as frequency, j.status,
+              j.created_at, j.updated_at,
+               null as result_id, null as start_time, null as duration_ms, null as result_status, null as error_msg
+      from jobs j);
+select * from runs order by created_at desc, result_id desc nulls first
   LIMIT ?`, limit)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get job results: %w", err)
 	}
 	defer rows.Close()
 
-	results := make([]DisplayResults, 0, 32)
+	results := make([]JobRun, 0, 32)
 
 	// count := 0
 
 	for rows.Next() {
-		var result DisplayResults
+		var result JobRun
 		var durationMs int64 // duration gets special handling
 
 		err = rows.Scan(
-			&result.JobID, &result.JobName, &result.FreqType, &result.JobState, &result.CreatedAt, &result.UpdatedAt,
+			&result.JobID, &result.JobName, &result.FreqType, &result.JobStatus, &result.CreatedAt, &result.UpdatedAt,
 			&result.ResultId, &result.StartTime, &durationMs,
 			&result.ResultStatus, &result.ErrorMsg,
 		)

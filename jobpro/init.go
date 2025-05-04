@@ -11,16 +11,16 @@ import (
 // TODO: Pass duckdb path as an argument instead of using env var.
 //
 //	If dbPath is empty, use as in-memory database
-func Init() (manager *DefaultJobManager, store *DuckDBStore) {
+func Init(dbFilePath string) (manager *DefaultJobManager, store *DuckDBStore) {
 	log.Println("Starting job processor")
 
 	// Initialize DuckDB store
-	dbPath := os.Getenv("DUCKDB_PATH")
-	if dbPath == "" {
-		dbPath = "jobs.duckdb"
+	if dbFilePath == "" {
+		dbFilePath = os.Getenv("DB_FIlE_PATH")
 	}
 
-	store, err := NewDuckDBStore(dbPath)
+	// If dbFilePath is still empty, use in-memory database
+	store, err := NewDuckDBStore(dbFilePath)
 	if err != nil {
 		logger.LogErr(err, "Failed to initialize DuckDB store")
 		os.Exit(1)

@@ -448,8 +448,8 @@ func (m *DefaultJobManager) LoadJobs() error {
 }
 
 // ListJobs in the store
-func (m *DefaultJobManager) ListJobs() (jobs []DisplayResults, err error) {
-	jobs, err = m.store.GetDisplayResults(100)
+func (m *DefaultJobManager) ListJobs() (jobs []JobRun, err error) {
+	jobs, err = m.store.GetJobRuns(100)
 	if err != nil {
 		return jobs, serr.Wrap(err, "error listing jobs")
 	}
