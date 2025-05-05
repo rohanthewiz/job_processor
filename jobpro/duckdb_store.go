@@ -16,11 +16,15 @@ type DuckDBStore struct {
 
 // NewDuckDBStore creates a new DuckDB-backed job store
 func NewDuckDBStore(dbPath string) (*DuckDBStore, error) {
+	if dbPath == "" {
+		dbPath = "(in-memory)"
+	}
+	fmt.Printf("Job Store DB Path: %s\n", dbPath)
+
 	db, err := sql.Open("duckdb", dbPath)
 	if err != nil {
 		return nil, fmt.Errorf("failed to open DuckDB: %w", err)
 	}
-	fmt.Println("**-> dbPath", dbPath)
 
 	store := &DuckDBStore{db: db}
 	if err := store.initialize(); err != nil {
@@ -57,7 +61,7 @@ func (s *DuckDBStore) initialize() error {
 			job_id VARCHAR NOT NULL,
 			start_time TIMESTAMP NOT NULL,
 			end_time TIMESTAMP NOT NULL,
-			duration_ms INTEGER NOT NULL,
+			duration_micro BIGINT NOT NULL,
 			status VARCHAR NOT NULL,
 			success_msg VARCHAR,
 			error_msg VARCHAR,
@@ -220,15 +224,15 @@ func (s *DuckDBStore) DeleteJob(id string) error {
 
 // RecordJobResult stores the outcome of a job execution
 func (s *DuckDBStore) RecordJobResult(result JobResult) error {
-	durationMs := result.Duration.Milliseconds()
+	durationMicro := result.Duration.Microseconds()
 
 	_, err := s.db.Exec(`
 		INSERT INTO job_results (
-			result_id, job_id, start_time, end_time, duration_ms, 
+			result_id, job_id, start_time, end_time, duration_micro, 
 			status, success_msg, error_msg
 		) VALUES (nextval('job_results_id_seq'), ?, ?, ?, ?, ?, ?, ?)
 	`,
-		result.JobID, result.StartTime, result.EndTime, durationMs,
+		result.JobID, result.StartTime, result.EndTime, durationMicro,
 		result.Status, result.SuccessMsg, result.ErrorMsg,
 	)
 	if err != nil {
@@ -240,7 +244,7 @@ func (s *DuckDBStore) RecordJobResult(result JobResult) error {
 // GetJobResults retrieves historical results for a job
 func (s *DuckDBStore) GetJobResults(jobID string, limit int) ([]JobResult, error) {
 	rows, err := s.db.Query(`
-		SELECT job_id, start_time, end_time, duration_ms, 
+		SELECT job_id, start_time, end_time, duration_micro, 
 		       status, success_msg, error_msg
 		FROM job_results
 		WHERE job_id = ?
@@ -255,15 +259,15 @@ func (s *DuckDBStore) GetJobResults(jobID string, limit int) ([]JobResult, error
 	results := []JobResult{}
 	for rows.Next() {
 		var result JobResult
-		var durationMs int64
+		var durationMicro int64
 		err := rows.Scan(
-			&result.JobID, &result.StartTime, &result.EndTime, &durationMs,
+			&result.JobID, &result.StartTime, &result.EndTime, &durationMicro,
 			&result.Status, &result.SuccessMsg, &result.ErrorMsg,
 		)
 		if err != nil {
 			return nil, fmt.Errorf("failed to scan result row: %w", err)
 		}
-		result.Duration = time.Duration(durationMs) * time.Millisecond
+		result.Duration = time.Duration(durationMicro) * time.Microsecond
 		results = append(results, result)
 	}
 
@@ -304,17 +308,17 @@ func (s *DuckDBStore) GetJobRuns(limit int) ([]JobRun, error) {
 	rows, err := s.db.Query(`
 drop table if exists runs;
 create temp table runs as (with results as (
-       select result_id, job_id, start_time, duration_ms, status, error_msg
+       select result_id, job_id, start_time, duration_micro, status, error_msg
        from job_results
        )
        select j.job_id, null job_name, null frequency, null status,
               j.created_at, null updated_at,
-               r.result_id, r.start_time, r.duration_ms, r.status result_status, r.error_msg
+               r.result_id, r.start_time, r.duration_micro, r.status result_status, r.error_msg
        from results r join jobs j on r.job_id = j.job_id
        union all
        select j.job_id, j.job_name, case when j.schedule is null or j.schedule = '' then 'one-time' else j.schedule end as frequency, j.status,
               j.created_at, j.updated_at,
-               null as result_id, null as start_time, null as duration_ms, null as result_status, null as error_msg
+               null as result_id, null as start_time, null as duration_micro, null as result_status, null as error_msg
       from jobs j);
 select * from runs order by created_at desc, result_id desc nulls first
   LIMIT ?`, limit)
@@ -330,11 +334,11 @@ select * from runs order by created_at desc, result_id desc nulls first
 	for rows.Next() {
 		var result JobRunDBRow
 
-		var durationMs sql.NullInt64 // duration gets special handling
+		var durationMicro sql.NullInt64 // duration gets special handling
 
 		err = rows.Scan(
 			&result.JobID, &result.JobName, &result.FreqType, &result.JobStatus, &result.CreatedAt, &result.UpdatedAt,
-			&result.ResultId, &result.StartTime, &durationMs,
+			&result.ResultId, &result.StartTime, &durationMicro,
 			&result.ResultStatus, &result.ErrorMsg,
 		)
 		if err != nil {
@@ -350,7 +354,7 @@ select * from runs order by created_at desc, result_id desc nulls first
 			UpdatedAt:    result.UpdatedAt.Time,
 			ResultId:     result.ResultId.Int64,
 			StartTime:    result.StartTime.Time,
-			Duration:     time.Duration(durationMs.Int64) * time.Millisecond,
+			Duration:     time.Duration(durationMicro.Int64) * time.Microsecond,
 			ResultStatus: result.ResultStatus.String,
 			ErrorMsg:     result.ErrorMsg.String,
 		}

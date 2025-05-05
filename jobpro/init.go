@@ -8,9 +8,8 @@ import (
 )
 
 // Init initializes the job processor with a DuckDB store and a job manager
-// TODO: Pass duckdb path as an argument instead of using env var.
 //
-//	If dbPath is empty, use as in-memory database
+//	If dbPath is empty, the store will be in-memory
 func Init(dbFilePath string) (manager *DefaultJobManager, store *DuckDBStore) {
 	log.Println("Starting job processor")
 

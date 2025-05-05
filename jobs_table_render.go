@@ -2,7 +2,6 @@ package main
 
 import (
 	_ "embed"
-	"fmt"
 	"job_processor/jobpro"
 
 	"github.com/rohanthewiz/element"
@@ -76,9 +75,9 @@ func renderJobsTable(jobs []jobpro.JobRun) string {
 											b.Td().T("")
 
 										} else { // run level things
-											b.Td().T(fmt.Sprintf("%d", job.ResultId))
+											b.Td().F("%d", job.ResultId)
 											b.TdClass("timestamp").T(job.StartTime.Format("2006-01-02 15:04 MST"))
-											b.Td().F("%s", job.Duration)
+											b.Td().F("%0.1f ms", float64(job.Duration.Microseconds())/1000)
 											b.Td().T(job.ResultStatus)
 											b.Td().T(job.ErrorMsg)
 										}
