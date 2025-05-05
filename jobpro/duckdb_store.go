@@ -330,7 +330,7 @@ select * from runs order by created_at desc, result_id desc nulls first
 	for rows.Next() {
 		var result JobRunDBRow
 
-		var durationMs int64 // duration gets special handling
+		var durationMs sql.NullInt64 // duration gets special handling
 
 		err = rows.Scan(
 			&result.JobID, &result.JobName, &result.FreqType, &result.JobStatus, &result.CreatedAt, &result.UpdatedAt,
@@ -350,7 +350,7 @@ select * from runs order by created_at desc, result_id desc nulls first
 			UpdatedAt:    result.UpdatedAt.Time,
 			ResultId:     result.ResultId.Int64,
 			StartTime:    result.StartTime.Time,
-			Duration:     time.Duration(durationMs) * time.Millisecond,
+			Duration:     time.Duration(durationMs.Int64) * time.Millisecond,
 			ResultStatus: result.ResultStatus.String,
 			ErrorMsg:     result.ErrorMsg.String,
 		}
