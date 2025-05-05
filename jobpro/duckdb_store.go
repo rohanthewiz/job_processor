@@ -284,6 +284,20 @@ type JobRun struct {
 	ErrorMsg     string
 }
 
+type JobRunDBRow struct {
+	JobID     string
+	JobName   sql.NullString
+	FreqType  sql.NullString
+	JobStatus sql.NullString
+	CreatedAt sql.NullTime
+	UpdatedAt sql.NullTime
+	ResultId  sql.NullInt64
+	StartTime sql.NullTime
+	// Duration     time.Duration
+	ResultStatus sql.NullString
+	ErrorMsg     sql.NullString
+}
+
 // GetJobRuns retrieves historical results for a job
 // Set limit to 0 for all
 func (s *DuckDBStore) GetJobRuns(limit int) ([]JobRun, error) {
@@ -314,7 +328,8 @@ select * from runs order by created_at desc, result_id desc nulls first
 	// count := 0
 
 	for rows.Next() {
-		var result JobRun
+		var result JobRunDBRow
+
 		var durationMs int64 // duration gets special handling
 
 		err = rows.Scan(
@@ -326,11 +341,24 @@ select * from runs order by created_at desc, result_id desc nulls first
 			return nil, serr.Wrap(err, "failed to scan result row")
 		}
 
-		result.Duration = time.Duration(durationMs) * time.Millisecond
+		jr := JobRun{
+			JobID:        result.JobID,
+			JobName:      result.JobName.String,
+			FreqType:     result.FreqType.String,
+			JobStatus:    result.JobStatus.String,
+			CreatedAt:    result.CreatedAt.Time,
+			UpdatedAt:    result.UpdatedAt.Time,
+			ResultId:     result.ResultId.Int64,
+			StartTime:    result.StartTime.Time,
+			Duration:     time.Duration(durationMs) * time.Millisecond,
+			ResultStatus: result.ResultStatus.String,
+			ErrorMsg:     result.ErrorMsg.String,
+		}
+
 		// if count < 15 {
 		// 	fmt.Printf("**-> result %d -> %#v\n", count, result)
 		// }
-		results = append(results, result)
+		results = append(results, jr)
 	}
 
 	return results, nil
