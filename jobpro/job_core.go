@@ -87,6 +87,7 @@ type JobStore interface {
 	// GetJobResults retrieves historical results for a job
 	GetJobResults(jobID string, limit int) ([]JobResult, error)
 	GetJobRuns(limit int) ([]JobRun, error)
+	Close() error
 }
 
 // JobMgr handles the lifecycle of jobs
@@ -107,6 +108,8 @@ type JobMgr interface {
 	ListJobs() ([]JobRun, error)
 	// GetJobStatus retrieves the current status of a job
 	GetJobStatus(id string) (JobStatus, error)
+	// GetJobsUpdatedChan returns a channel that signals when jobs are updated in the manager.
+	GetJobsUpdatedChan() <-chan any
 	// Shutdown gracefully stops all running jobs
 	Shutdown(timeout time.Duration) error
 }

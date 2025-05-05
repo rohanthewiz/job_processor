@@ -19,3 +19,4 @@ static/
 *duckdb
 *duck
 *.ddb
+*.wal

@@ -1,8 +1,10 @@
 package jobpro
 
 import (
+	"job_processor/shutdown"
 	"log"
 	"os"
+	"time"
 
 	"github.com/rohanthewiz/logger"
 )
@@ -10,7 +12,7 @@ import (
 // Init initializes the job processor with a DuckDB store and a job manager
 //
 //	If dbPath is empty, the store will be in-memory
-func Init(dbFilePath string) (manager *DefaultJobManager, store *DuckDBStore) {
+func Init(dbFilePath string) (manager *DefaultJobManager) {
 	log.Println("Starting job processor")
 
 	// Initialize DuckDB store
@@ -26,5 +28,17 @@ func Init(dbFilePath string) (manager *DefaultJobManager, store *DuckDBStore) {
 	}
 
 	// Initialize job manager
-	return NewJobManager(store), store
+	jobMgr := NewJobManager(store)
+
+	shutdown.RegisterHook(func(gracePeriod time.Duration) error {
+		err := jobMgr.Shutdown(gracePeriod)
+		if err != nil {
+			logger.LogErr(err, "Error during job manager shutdown")
+		} else {
+			logger.Info("Job manager shutdown")
+		}
+		return err
+	})
+
+	return jobMgr
 }

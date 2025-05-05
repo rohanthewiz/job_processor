@@ -22,6 +22,7 @@ type DefaultJobManager struct {
 	mu          sync.RWMutex
 	wg          sync.WaitGroup
 	results     chan JobResult
+	jobsUpdated chan any // Channel to signal that there has been at least one job update
 	shutdown    bool
 }
 
@@ -36,7 +37,8 @@ func NewJobManager(store JobStore) *DefaultJobManager {
 		jobs:        make(map[string]Job),
 		cronEntries: make(map[string]cron.EntryID),
 		runningJobs: make(map[string]context.CancelFunc),
-		results:     make(chan JobResult, 100), // Buffer for job results
+		results:     make(chan JobResult, 256), // Buffer for job results - perhaps make this configurable
+		jobsUpdated: make(chan any, 1),
 	}
 
 	// Start the results processor
@@ -48,9 +50,14 @@ func NewJobManager(store JobStore) *DefaultJobManager {
 	return mgr
 }
 
+// GetJobsUpdatedChan returns a channel that signals when jobs have been updated
+func (m *DefaultJobManager) GetJobsUpdatedChan() <-chan any {
+	return m.jobsUpdated
+}
+
 // processResults handles job completion results
 func (m *DefaultJobManager) processResults() {
-	for result := range m.results {
+	for result := range m.results { // range over the results channel
 		// Store the job result
 		if err := m.store.RecordJobResult(result); err != nil {
 			log.Printf("Error recording job result for %s: %v", result.JobID, err)
@@ -58,6 +65,8 @@ func (m *DefaultJobManager) processResults() {
 
 		// Update job status in store if job was successful or failed (not if stopped)
 		if result.Status == StatusComplete || result.Status == StatusFailed {
+			fmt.Println("Job completed - updating job status in store")
+
 			if err := m.store.UpdateJobStatus(result.JobID, result.Status); err != nil {
 				log.Printf("Error updating job status for %s: %v", result.JobID, err)
 			}
@@ -82,6 +91,14 @@ func (m *DefaultJobManager) processResults() {
 						// TODO what about actually executing the job again in cron?
 					}
 				}
+			}
+
+			// Let the system know that jobs have been updated
+			select {
+			case m.jobsUpdated <- "updated":
+				fmt.Println("Job update notification sent")
+			default: // Non-blocking send to avoid blocking if no one is listening
+				// If the channel is full, we don't want to block
 			}
 		}
 
@@ -496,6 +513,11 @@ func (m *DefaultJobManager) Shutdown(timeout time.Duration) error {
 
 	// Wait for cron context to be done
 	<-cronContext.Done()
+
+	err := m.store.Close()
+	if err != nil {
+		return serr.Wrap(err, "error closing job store")
+	}
 
 	return nil
 

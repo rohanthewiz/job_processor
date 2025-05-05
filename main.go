@@ -3,45 +3,40 @@ package main
 import (
 	"fmt"
 	"job_processor/jobpro"
+	"job_processor/pubsub"
 	"job_processor/shutdown"
 	"log"
 	"os"
-	"time"
 
+	"github.com/rohanthewiz/element"
 	"github.com/rohanthewiz/logger"
 	"github.com/rohanthewiz/rweb"
 	"github.com/rohanthewiz/serr"
 )
 
 func main() {
-	manager, store := jobpro.Init("jobs.ddb")
-	defer func() {
-		_ = store.Close()
-	}()
+	done := make(chan struct{}) // done channel will signal when shutdown complete
+	shutdown.InitShutdownService(done)
 
-	// done channel will signal when shutdown complete
-	done := make(chan struct{})
-	shutdown.InitService(done)
+	jobMgr := jobpro.Init("jobs.ddb")
 
-	// Close the job manager on shutdown
-	shutdown.RegisterHook(func(gracePeriod time.Duration) error {
-		err := manager.Shutdown(gracePeriod)
-		if err != nil {
-			logger.LogErr(err, "Error during job manager shutdown")
-		} else {
-			logger.Info("Job manager shutdown")
-		}
-		return err
-	})
-
-	if err := registerJobs(manager); err != nil {
-		logger.LogErr(err, "Failed to register jobs")
+	if err := pubsub.StartPubSub(); err != nil {
+		logger.LogErr(err, "Failed to start pubsub")
+		os.Exit(1)
 	}
 
-	// Inline WebServe so we can see the job manager etc
+	if err := pubsub.ListenForUpdates(jobMgr.GetJobsUpdatedChan()); err != nil {
+		logger.LogErr(err, "Failed to setup listener for job updates")
+	}
+
+	if err := registerJobs(jobMgr); err != nil {
+		logger.LogErr(err, "Failed to register jobs")
+		os.Exit(1)
+	}
+
 	go func() {
 		s := rweb.NewServer(rweb.ServerOptions{
-			Address: fmt.Sprintf(":%s", "8800"),
+			Address: fmt.Sprintf(":%s", "8000"),
 			Verbose: true,
 		})
 
@@ -49,8 +44,8 @@ func main() {
 
 		s.Get("/", rootHandler)
 
-		s.Get("/show-jobs", func(ctx rweb.Context) error {
-			jobs, err := manager.ListJobs()
+		s.Get("/jobs", func(ctx rweb.Context) error {
+			jobs, err := jobMgr.ListJobs()
 			if err != nil {
 				logger.LogErr(err, "Failed to list jobs")
 				return serr.Wrap(err)
@@ -58,38 +53,40 @@ func main() {
 			return ctx.WriteHTML(renderJobsTable(jobs))
 		})
 
+		s.Get("/jobs-table-rows", func(ctx rweb.Context) error {
+			jobs, err := jobMgr.ListJobs()
+			if err != nil {
+				logger.LogErr(err, "Failed to list jobs")
+				return serr.Wrap(err)
+			}
+
+			b := element.NewBuilder()
+			renderJobsTableRows(b, jobs)
+
+			return ctx.WriteHTML(b.String())
+		})
+
+		s.Get("/jobs-update", func(ctx rweb.Context) error {
+			fmt.Println("In SSE handler")
+			out := make(chan any, 1)
+			_, err := pubsub.SubscribeToUpdates(out)
+			if err != nil {
+				return serr.Wrap(err)
+			}
+
+			s.SetupSSE(ctx, out, "job-update")
+
+			// fmt.Println("Exiting SSE handler")
+			// sub.Unsubscribe()
+			return nil
+		})
+
 		log.Println(s.Run())
 	}()
 
 	// Block until done signal
 	<-done
-	log.Println("App exited")
-}
-
-// registerJobs adds some example jobs to the manager
-func registerJobs(manager jobpro.JobMgr) error {
-	// Create a new periodic job
-	periodicJob := jobpro.NewPeriodicJob(
-		"periodic-2",
-		"Periodic Job",
-		0, 0, func() error {
-			log.Println("Starting periodic action")
-			return nil
-		},
-	)
-
-	periodicID, err := manager.RegisterJob(periodicJob, "*/10 * * * * *")
-	if err != nil {
-		return serr.Wrap(err, "failed to create periodic job")
-	}
-	log.Printf("Created periodic job with ID: %s", periodicID)
-
-	// Start the periodic job
-	if err := manager.StartJob(periodicID); err != nil {
-		logger.LogErr(serr.Wrap(err, "Failed to start periodic job"))
-	}
-
-	return nil
+	println("App exited")
 }
 
 func rootHandler(ctx rweb.Context) error {

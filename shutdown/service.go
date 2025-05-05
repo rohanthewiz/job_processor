@@ -1,6 +1,7 @@
 package shutdown
 
 import (
+	"fmt"
 	"log"
 	"os"
 	"os/signal"
@@ -24,27 +25,39 @@ func RegisterHook(fn HookFunc) {
 	hooks.lock.Lock()
 	defer hooks.lock.Unlock()
 	hooks.Hooks = append(hooks.Hooks, fn)
+	fmt.Printf("Registered shutdown hook: %d\n", len(hooks.Hooks))
 }
 
-func InitService(done chan struct{}) (sigChan chan os.Signal) {
+// InitShutdownService initializes the shutdown service.
+// It will close the done channel to allow the app to shutdown
+func InitShutdownService(done chan struct{}) {
 	// Setup shutdown signal handling
-	sigChan = make(chan os.Signal, 1)
+	sigChan := make(chan os.Signal, 1)
 	signal.Notify(sigChan, syscall.SIGINT, syscall.SIGTERM)
 
 	// Go handle shutdown signal
 	go func() {
+		defer close(done)
+		wg := sync.WaitGroup{}
+
 		sig := <-sigChan
 		log.Printf("Received shutdown signal: %v", sig)
 		setShutdown()
 
 		// Give manager time to shutdown gracefully
-		log.Printf("Shutting down... grace period is: %s", gracePeriod)
+		log.Printf("Shutting down %d hooks grace period is: %s", len(hooks.Hooks), gracePeriod)
 
-		for _, hook := range hooks.Hooks {
-			_ = hook(gracePeriod)
+		for i, hook := range hooks.Hooks {
+			wg.Add(1)
+			go func(it int) {
+				defer wg.Done()
+				_ = hook(gracePeriod)
+				log.Printf("Shutdown hook %d completed", it)
+			}(i)
+
 		}
+		wg.Wait()
 
-		close(done)
 	}()
 
 	return
