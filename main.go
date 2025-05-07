@@ -5,7 +5,6 @@ import (
 	"job_processor/jobpro"
 	"job_processor/pubsub"
 	"job_processor/shutdown"
-	"log"
 	"os"
 
 	"github.com/rohanthewiz/element"
@@ -81,12 +80,15 @@ func main() {
 			return nil
 		})
 
-		log.Println(s.Run())
+		err := s.Run()
+		if err != nil {
+			logger.LogErr(err, "where", "at server exit")
+		}
 	}()
 
 	// Block until done signal
 	<-done
-	println("App exited")
+	fmt.Println("App exited")
 }
 
 func rootHandler(ctx rweb.Context) error {
