@@ -66,17 +66,16 @@ func main() {
 		})
 
 		s.Get("/jobs-update", func(ctx rweb.Context) error {
-			fmt.Println("In SSE handler")
+			fmt.Println("Handling SSE request")
 			out := make(chan any, 1)
 			_, err := pubsub.SubscribeToUpdates(out)
 			if err != nil {
 				return serr.Wrap(err)
 			}
 
+			// Remember that this is just the setup of the SSE connection headers etc.
+			// Data will flow *after* this function exits
 			s.SetupSSE(ctx, out, "job-update")
-
-			// fmt.Println("Exiting SSE handler")
-			// sub.Unsubscribe()
 			return nil
 		})
 

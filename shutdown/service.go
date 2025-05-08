@@ -8,9 +8,11 @@ import (
 	"sync"
 	"syscall"
 	"time"
+
+	"github.com/rohanthewiz/logger"
 )
 
-const gracePeriod = 20 * time.Second
+const gracePeriod = 15 * time.Second
 
 type HookFunc func(duration time.Duration) error
 
@@ -25,12 +27,12 @@ func RegisterHook(fn HookFunc) {
 	hooks.lock.Lock()
 	defer hooks.lock.Unlock()
 	hooks.Hooks = append(hooks.Hooks, fn)
-	fmt.Printf("Registered shutdown hook: %d\n", len(hooks.Hooks))
+	fmt.Printf("Registered shutdown hook: #%d\n", len(hooks.Hooks))
 }
 
-// InitShutdownServiceZ initializes the shutdown service.
+// InitShutdownService initializes the shutdown service, so things can shutdown gracefully
 // It will close the done channel to allow the app to shutdown
-func InitShutdownServiceZ(done chan struct{}) {
+func InitShutdownService(done chan struct{}) {
 	// Setup shutdown signal handling
 	sigChan := make(chan os.Signal, 1)
 	signal.Notify(sigChan, syscall.SIGINT, syscall.SIGTERM)
@@ -44,6 +46,7 @@ func InitShutdownServiceZ(done chan struct{}) {
 		log.Printf("Received shutdown signal: %v", sig)
 		setShutdown()
 
+		/* Hmmm, maybe we do want to kill with a second CTRL-C.
 		// Keep capturing signals so that subsequent CTRL-C's
 		// 	don't kill us by default.
 		go func() {
@@ -53,10 +56,10 @@ func InitShutdownServiceZ(done chan struct{}) {
 				log.Printf("caught subsequent signal: %v", sig)
 
 			}
-		}()
+		}() */
 
-		// Give manager time to shutdown gracefully
-		log.Printf("Shutting down %d hooks grace period is: %s", len(hooks.Hooks), gracePeriod)
+		// Fire all shutdown hooks
+		log.Printf("Shutting down %d hooks (grace period is: %s)", len(hooks.Hooks), gracePeriod)
 
 		for i, hook := range hooks.Hooks {
 			wg.Add(1)
@@ -66,30 +69,22 @@ func InitShutdownServiceZ(done chan struct{}) {
 				log.Printf("Shutdown hook %d completed", it)
 			}(i)
 		}
-		wg.Wait()
-		fmt.Println("Trying to sleep for 5 before exiting")
-		time.Sleep(5 * time.Second) // Give time for signal to propagate
+
+		holdForWaitGroup := make(chan struct{})
+		go func() {
+			wg.Wait()
+			logger.F("All shutdown hooks completed")
+			close(holdForWaitGroup)
+		}()
+
+		select {
+		case <-holdForWaitGroup:
+			// Wait completed normally
+		case <-time.After(gracePeriod):
+			log.Printf("Shutdown hooks timed out after %v", gracePeriod)
+		}
+		logger.Info("Shutdown service done")
 	}()
 
 	return
-}
-
-func InitShutdownService(done chan struct{}) {
-	sigChan := make(chan os.Signal, 1)
-
-	// Notify for SIGINT and SIGTERM signals.
-	signal.Notify(sigChan, os.Interrupt, syscall.SIGTERM)
-
-	fmt.Println("Program is running. Press CTRL-C to exit.")
-
-	// Wait for a signal in a goroutine.
-	go func() {
-		sig := <-sigChan
-		fmt.Printf("Received signal: %s. Waiting for graceful shutdown...\n", sig)
-		// Simulate cleanup work.
-		time.Sleep(10 * time.Second)
-		fmt.Println("Cleanup complete.")
-		close(done)
-		// os.Exit(0)
-	}()
 }
