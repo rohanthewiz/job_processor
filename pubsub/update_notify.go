@@ -49,7 +49,7 @@ func ListenForUpdates(updates <-chan any) error {
 // SubscribeToUpdates subscribes to job updates
 func SubscribeToUpdates(out chan any) (*Subscription, error) {
 	broker := GetBroker()
-	sub := broker.subscribe(JobUpdateSubject, out)
+	sub := broker.subscribe(JobUpdateSubject, chanWrap{ch: out})
 
 	shutdown.RegisterHook(func(_ time.Duration) error {
 		logger.F("Shutting down subscription to %s on channel %v", JobUpdateSubject, out)
