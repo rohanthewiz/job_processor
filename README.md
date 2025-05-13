@@ -9,7 +9,7 @@ A lightweight, flexible job scheduling and processing system written in Go.
 - **Persistent Storage**: Jobs and their execution history stored in DuckDB
 - **Runtime Metrics**: Detailed statistics for each job execution
 - **Graceful Shutdown**: Clean handling of shutdown signals
-- **Error Handling**: Structured error system with stack traces
+- **Error Handling**: Structured error system
 
 ## Core Components
 
@@ -22,64 +22,21 @@ A lightweight, flexible job scheduling and processing system written in Go.
 
 ### Prerequisites
 
-- Go 1.18+
+- Go 1.22+
 - DuckDB
 
 ### Installation
 
 ```bash
-go get github.com/your-username/jobpro
+go get github.com/rohanthewiz/jobprocessor
 ```
 
 ### Basic Usage
+See `main.go` for a complete example.
 
 ```go
-package main
 
-import (
-	"log"
-	"time"
-
-	"github.com/your-username/jobprocessor"
-)
-
-func main() {
-	// Initialize the DuckDB store
-	store, err := jobprocessor.NewDuckDBStore("jobs.duckdb")
-	if err != nil {
-		log.Fatalf("Failed to initialize store: %v", err)
-	}
-	defer store.Close()
-
-	// Create the job manager
-	manager := jobprocessor.NewJobManager(store)
-
-	// Create a simple dummy job that runs once
-	job := jobprocessor.NewDummyJob(
-		"job-1",
-		"My First Job",
-		jobprocessor.ScheduleOneTime,
-		5*time.Second,
-		0.9, // 90% chance of success
-	)
-
-	// Add the job to the manager
-	jobID, err := manager.CreateJob(job, time.Now().Add(1*time.Minute).Format(time.RFC3339))
-	if err != nil {
-		log.Fatalf("Failed to create job: %v", err)
-	}
-
-	// Start the job
-	if err := manager.StartJob(jobID); err != nil {
-		log.Fatalf("Failed to start job: %v", err)
-	}
-
-	// Wait for completion
-	time.Sleep(2 * time.Minute)
-}
-```
-
-### Creating Custom Jobs
+### Creating Custom Jobs - This is the basic idea but may not be complete. See the example in `main.go`.
 
 Implement the `Job` interface to create custom jobs:
 
@@ -131,10 +88,10 @@ For periodic jobs, use standard cron syntax:
 
 ```go
 // Run every 15 minutes
-jobID, err := manager.CreateJob(job, "*/15 * * * *")
+jobID, err := manager.CreateJob(job, "0 */15 * * * *")
 
 // Run at 2:30am every day
-jobID, err := manager.CreateJob(job, "30 2 * * *")
+jobID, err := manager.CreateJob(job, "0 30 2 * * *")
 ```
 
 ## Job Lifecycle Operations
@@ -154,26 +111,6 @@ err := manager.DeleteJob(jobID)
 
 // Get current job status
 status, err := manager.GetJobStatus(jobID)
-```
-
-## Error Handling
-
-The package includes a structured error handling system:
-
-```go
-import "github.com/your-username/jobpro/serr"
-
-// Create a new error
-err := serr.New("something went wrong")
-
-// Wrap an existing error
-wrappedErr := serr.Wrap(err, "while processing file")
-
-// Format and wrap
-formattedErr := serr.Wrapf(err, "while processing file %s", filename)
-
-// Get full error with stack trace
-fullError := wrappedErr.FullError()
 ```
 
 ## Signal Handling & Graceful Shutdown
