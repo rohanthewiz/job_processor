@@ -52,6 +52,8 @@ func main() {
 			return ctx.WriteHTML(renderJobsTable(jobs))
 		})
 
+		// Endpoint to get the jobs table rows
+		// Typically this is called after an SSE event is received on job update
 		s.Get("/jobs-table-rows", func(ctx rweb.Context) error {
 			jobs, err := jobMgr.ListJobs()
 			if err != nil {
@@ -65,6 +67,7 @@ func main() {
 			return ctx.WriteHTML(b.String())
 		})
 
+		// SSE endpoint for job updates
 		s.Get("/jobs-update", func(ctx rweb.Context) error {
 			fmt.Println("Handling SSE request")
 			out := make(chan any, 1)
@@ -75,10 +78,49 @@ func main() {
 
 			// Remember that this is just the setup of the SSE connection headers etc.
 			// Data will flow *after* this function exits
-			s.SetupSSE(ctx, out, "job-update")
-			return nil
+			err = s.SetupSSE(ctx, out, "job-update")
+			if err != nil {
+				err = serr.Wrap(err)
+			}
+			return err
 		})
 
+		s.Post("/pause-job/:job-id", func(ctx rweb.Context) error {
+			jobID := ctx.Request().Param("job-id")
+
+			// Assume your jobpro.Manager has a PauseJob method
+			if err := jobMgr.PauseJob(jobID); err != nil {
+				logger.LogErr(err, "Failed to pause job", "jobID", jobID)
+				ctx.Status(500)
+				return ctx.WriteJSON(map[string]string{
+					"error": err.Error(),
+				})
+			}
+
+			return ctx.WriteJSON(map[string]string{
+				"jobID":  jobID,
+				"status": "paused",
+			})
+		})
+
+		s.Post("/resume-job/:job-id", func(ctx rweb.Context) error {
+			jobID := ctx.Request().Param("job-id")
+
+			if err := jobMgr.ResumeJob(jobID); err != nil {
+				logger.LogErr(err, "Failed to resume job", "jobID", jobID)
+				ctx.Status(500)
+				return ctx.WriteJSON(map[string]string{
+					"error": err.Error(),
+				})
+			}
+
+			return ctx.WriteJSON(map[string]string{
+				"jobID":  jobID,
+				"status": "resumed",
+			})
+		})
+
+		// Run the server
 		err := s.Run()
 		if err != nil {
 			logger.LogErr(err, "where", "at server exit")

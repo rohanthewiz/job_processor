@@ -16,7 +16,7 @@ const jobEvent = "job-update"
 func renderJobsTable(jobs []jobpro.JobRun) string {
 	b := element.NewBuilder()
 	cols := []string{"Job", "ID", "Freq", "Status", "Created", "Updated",
-		"Run ID", "Run Start", "Run Duration", "Run Status", "Run Error Msg"}
+		"Run ID", "Run Start", "Run Duration", "Run Status", "Run Error Msg", "Controls"}
 
 	b.Html().R(
 		b.Head().R(
@@ -66,6 +66,7 @@ func renderJobsTableRows(b *element.Builder, jobs []jobpro.JobRun) (x any) {
 			b.Td().T(job.JobName),
 			b.Td().T(job.JobID),
 			b.Wrap(func() {
+				// Some Job level attributes
 				if job.ResultId == 0 { // main job
 					b.Td().T(job.FreqType)
 
@@ -92,12 +93,36 @@ func renderJobsTableRows(b *element.Builder, jobs []jobpro.JobRun) (x any) {
 					b.Td().T("")
 				}
 
+				// Some Run level attributes
 				if job.ResultId == 0 { // no need to display runlevel things for the main job
 					b.Td().T("")
 					b.Td().T("")
 					b.Td().T("")
 					b.Td().T("")
 					b.Td().T("")
+					// Controls
+					b.Td().R(
+						b.AClass("btn btn-primary", "data-job-id", job.JobID, "onClick",
+							`fetch('/pause-job/' + this.getAttribute('data-job-id'), {method: 'POST'})
+						    .then(response => {
+						        if (response.ok) return response.json();
+						        throw new Error('Network response was not ok');
+						    })
+						    .then(data => console.log('Job paused:', data))
+						    .catch(error => console.error('Error pausing job:', error))`).R(
+							b.Button().T("Pause"),
+						),
+						b.AClass("btn btn-primary", "data-job-id", job.JobID, "onClick",
+							`fetch('/resume-job/' + this.getAttribute('data-job-id'), {method: 'POST'})
+						    .then(response => {
+						        if (response.ok) return response.json();
+						        throw new Error('Network response was not ok');
+						    })
+						    .then(data => console.log('Job resumed:', data))
+						    .catch(error => console.error('Error resuming job:', error))`).R(
+							b.Button().T("Resume"),
+						),
+					)
 
 				} else { // run level things
 					b.Td().F("%d", job.ResultId)
@@ -105,6 +130,7 @@ func renderJobsTableRows(b *element.Builder, jobs []jobpro.JobRun) (x any) {
 					b.Td().F("%0.1f ms", float64(job.Duration.Microseconds())/1000)
 					b.Td().T(job.ResultStatus)
 					b.Td().T(job.ErrorMsg)
+					b.Td().T("")
 				}
 			}),
 		)
