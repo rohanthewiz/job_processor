@@ -14,7 +14,9 @@ func registerJobs(manager jobpro.JobMgr) error {
 	periodicJob := jobpro.NewPeriodicJob(
 		"per-2",
 		"Periodic Job 2",
-		0, 0, func() error {
+		0, 0,
+		func() error {
+			// Do Work
 			log.Println("Starting periodic action per-2")
 			return nil
 		},

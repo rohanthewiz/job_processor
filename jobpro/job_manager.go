@@ -16,9 +16,9 @@ import (
 type DefaultJobManager struct {
 	store       JobStore
 	cron        *cron.Cron
-	jobs        map[string]Job
-	cronEntries map[string]cron.EntryID
-	runningJobs map[string]context.CancelFunc
+	jobs        map[string]Job                // keep track of active jobs
+	cronEntries map[string]cron.EntryID       // keep track of jobs scheduled with cron
+	runningJobs map[string]context.CancelFunc // keep track of running jobs and a cancel function to stop each
 	mu          sync.RWMutex
 	wg          sync.WaitGroup
 	results     chan JobResult
@@ -67,19 +67,25 @@ func (m *DefaultJobManager) processResults() {
 		if result.Status == StatusComplete || result.Status == StatusFailed {
 			fmt.Println("Job completed - updating job status in store")
 
-			if err := m.store.UpdateJobStatus(result.JobID, result.Status); err != nil {
-				log.Printf("Error updating job status for %s: %v", result.JobID, err)
-			}
-
-			// For periodic jobs that completed, update next run time if not already scheduled via cron
-			// Are we to assume that if the job is already scheduled in cron, we cannot update the next run time?
 			jobDef, err := m.store.GetJob(result.JobID)
-			if err == nil && jobDef.SchedType == Periodic {
+			if err != nil {
+				log.Printf("Error getting job definition for %s: %v", result.JobID, err)
+				continue
+			}
+			isPeriodic := jobDef.SchedType == Periodic
+
+			// Periodic jobs should not be updated here
+			if !isPeriodic {
+				if err := m.store.UpdateJobStatus(result.JobID, result.Status); err != nil {
+					log.Printf("Error updating job status for %s: %v", result.JobID, err)
+				}
+			} /* we will only run periodic jobs with cron so ignore this block
+				// else { // For periodic jobs that completed, update next run time if not already scheduled via cron
 				m.mu.RLock()
 				_, inCron := m.cronEntries[result.JobID]
 				m.mu.RUnlock()
 
-				if !inCron { // ~ this is a really weird case as why would the job have a schedule and not be in cron?
+				if !inCron { // ~ why would the job have a schedule and not be in cron?
 					// If not scheduled via cron (e.g., a manually triggered run), calculate next run
 					scheduler, err := cron.NewParser(cron.Second | cron.Minute | cron.Hour | cron.Dom |
 						cron.Month | cron.Dow).Parse(jobDef.Schedule)
@@ -88,10 +94,10 @@ func (m *DefaultJobManager) processResults() {
 						if err := m.store.UpdateNextRunTime(result.JobID, nextRun); err != nil {
 							log.Printf("Error updating next run time for %s: %v", result.JobID, err)
 						}
-						// TODO what about actually executing the job again in cron?
+						// what about actually executing the job again in cron?
 					}
 				}
-			}
+			}*/
 
 			// Let the system know that jobs have been updated
 			select {
@@ -255,9 +261,10 @@ func (m *DefaultJobManager) executeJob(id string) {
 	m.wg.Add(1) // Track this running job
 	m.mu.Unlock()
 
-	// Execute the job
 	startTime := time.Now().UTC()
-	stats, err := job.Run(ctx)
+
+	// EXECUTE the job
+	stats, err := job.Run(ctx) // DoIt
 	endTime := time.Now().UTC()
 	duration := endTime.Sub(startTime)
 
@@ -281,7 +288,7 @@ func (m *DefaultJobManager) executeJob(id string) {
 	select {
 	case m.results <- result:
 		// Result queued for processing
-	default: // How does default work in a select statement
+	default:
 		// Results channel is full, log and continue
 		log.Printf("Results channel full, dropping result for job %s", id)
 		m.wg.Done() // Still mark as done even if we couldn't queue the result
@@ -316,6 +323,15 @@ func (m *DefaultJobManager) StopJob(id string) error {
 		return fmt.Errorf("failed to update job status: %w", err)
 	}
 
+	// Send notification that job has stopped
+	// Let the system know that jobs have been updated
+	select {
+	case m.jobsUpdated <- "updated":
+		fmt.Println("Job update (stopped) notification sent")
+	default: // Non-blocking send to avoid blocking if no one is listening
+		// If the channel is full, we don't want to block
+	}
+
 	return nil
 }
 
@@ -325,24 +341,35 @@ func (m *DefaultJobManager) PauseJob(id string) error {
 	defer m.mu.Unlock()
 
 	// Check if job exists
-	if _, exists := m.jobs[id]; !exists {
+	job, exists := m.jobs[id]
+	if !exists {
 		return fmt.Errorf("job %s not found", id)
 	}
 
-	// If it's a periodic job, remove from cron but keep the entry ID
+	// If it's a periodic job, remove from cron but keep it in m.cronEntries
 	if entryID, exists := m.cronEntries[id]; exists {
 		m.cron.Remove(entryID)
 		// We keep the entry in the m.cronEntries map to remember it was scheduled
 	}
 
-	// If it's running, we can't pause it mid-execution
-	if _, running := m.runningJobs[id]; running {
-		return fmt.Errorf("job %s is currently running and cannot be paused", id)
+	if job.Type() != Periodic {
+		// If it's running, we can't pause it mid-execution
+		if _, running := m.runningJobs[id]; running {
+			return fmt.Errorf("job %s is currently running and cannot be paused", id)
+		}
 	}
 
 	// Update job status
 	if err := m.store.UpdateJobStatus(id, StatusPaused); err != nil {
 		return fmt.Errorf("failed to update job status: %w", err)
+	}
+
+	// Let the system know that jobs have been updated
+	select {
+	case m.jobsUpdated <- "updated":
+		fmt.Println("Job update (paused) notification sent")
+	default: // Non-blocking send to avoid blocking if no one is listening
+		// If the channel is full, we don't want to block
 	}
 
 	return nil
@@ -386,6 +413,14 @@ func (m *DefaultJobManager) ResumeJob(id string) error {
 			}
 			m.cronEntries[id] = entryID
 		}
+	}
+
+	// Let the system know that jobs have been updated
+	select {
+	case m.jobsUpdated <- "updated":
+		fmt.Println("Job update (resume) notification sent")
+	default: // Non-blocking send to avoid blocking if no one is listening
+		// If the channel is full, we don't want to block
 	}
 
 	return nil
