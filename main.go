@@ -19,6 +19,7 @@ func main() {
 
 	jobMgr := jobpro.Init("jobs.ddb")
 
+	// Start PubSub so UI can receive SSE events
 	if err := pubsub.StartPubSub(); err != nil {
 		logger.LogErr(err, "Failed to start pubsub")
 		os.Exit(1)
@@ -28,8 +29,22 @@ func main() {
 		logger.LogErr(err, "Failed to setup listener for job updates")
 	}
 
-	if err := registerJobs(jobMgr); err != nil {
-		logger.LogErr(err, "Failed to register jobs")
+	// Register a job - we should be able to register jobs from any package.
+	// It is recommended to register jobs from your package init functions.
+	// This one is here as an example
+	jobpro.RegisterJob(jobpro.JobConfig{
+		ID:         "job1",
+		Name:       "Example Job 1",
+		IsPeriodic: true,
+		Schedule:   "*/10 * * * * *", // Every 10s
+		JobFunction: func() error {
+			fmt.Println("doing work")
+			return nil
+		},
+	})
+
+	if err := jobpro.LoadJobs(jobMgr); err != nil {
+		logger.LogErr(err, "Failed to load jobs")
 		os.Exit(1)
 	}
 

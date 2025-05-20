@@ -9,24 +9,21 @@ import (
 // PeriodicJob is a job that logs messages at possibly multiple intervals
 type PeriodicJob struct {
 	BaseJob
-	Period time.Duration // When to log messages
-	Call   func() error  // Function to call at each interval
+	Period time.Duration // Allows an additional interval on top of cron -- not using for now
+	Call   func() error  // Function to call at each interval -- overrides BaseJob.WorkFunc
 }
 
 // NewPeriodicJob creates a new logging job
-func NewPeriodicJob(id, name string,
-	maxWorkTime time.Duration, period time.Duration,
-	fn func() error) *PeriodicJob {
+func NewPeriodicJob(jc JobConfig) *PeriodicJob {
 
 	job := &PeriodicJob{
 		BaseJob: BaseJob{
-			id:          id,
-			name:        name,
+			id:          jc.ID,
+			name:        jc.Name,
 			freqType:    Periodic,
-			maxWorkTime: maxWorkTime,
+			maxWorkTime: 0,
 		},
-		Period: period,
-		Call:   fn,
+		Call: jc.JobFunction,
 	}
 
 	// Set the work function
@@ -35,7 +32,7 @@ func NewPeriodicJob(id, name string,
 	return job
 }
 
-// periodicRun is the work function for PeriodicJob
+// periodicRun is the work function for PeriodicJob overriding the base job's Run
 func (j *PeriodicJob) periodicRun(ctx context.Context) (results string, err error) {
 	// Create a timer for the job duration only if maxWorkTime > 0
 	var timer *time.Timer
@@ -46,8 +43,7 @@ func (j *PeriodicJob) periodicRun(ctx context.Context) (results string, err erro
 
 	runCount := 0
 
-	// If Period is set, use a ticker
-	if j.Period > 0 {
+	if j.Period > 0 { // If Period is set, use a ticker -- let's not do this for now
 		ticker := time.NewTicker(j.Period)
 		defer ticker.Stop()
 
