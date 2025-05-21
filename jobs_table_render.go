@@ -3,6 +3,7 @@ package main
 import (
 	_ "embed"
 	"job_processor/jobpro"
+	"strings"
 
 	"github.com/rohanthewiz/element"
 )
@@ -71,9 +72,11 @@ func renderJobsTableRows(b *element.Builder, jobs []jobpro.JobRun) (x any) {
 					b.Td().T(job.FreqType)
 
 					statusClass := "badge badge-inactive"
-					switch job.JobStatus {
-					case "active":
+					switch strings.ToLower(job.JobStatus) {
+					case "running":
 						statusClass = "badge badge-active"
+					case "paused":
+						statusClass = "badge badge-pending"
 					case "pending":
 						statusClass = "badge badge-pending"
 					case "error":
@@ -102,25 +105,38 @@ func renderJobsTableRows(b *element.Builder, jobs []jobpro.JobRun) (x any) {
 					b.Td().T("")
 					// Controls
 					b.Td().R(
-						b.AClass("btn btn-primary", "data-job-id", job.JobID, "onClick",
+						// Pause button
+						b.AClass("btn btn-primary", "data-job-id", job.JobID, "title", "Pause Job", "onClick",
 							`fetch('/pause-job/' + this.getAttribute('data-job-id'), {method: 'POST'})
-						    .then(response => {
-						        if (response.ok) return response.json();
-						        throw new Error('Network response was not ok');
-						    })
-						    .then(data => console.log('Job paused:', data))
-						    .catch(error => console.error('Error pausing job:', error))`).R(
-							b.Button().T("Pause"),
+            .then(response => {
+                if (response.ok) return response.json();
+                throw new Error('Network response was not ok');
+            })
+            .then(data => console.log('Job paused:', data))
+            .catch(error => console.error('Error pausing job:', error))`).R(
+							// SVG: Pause icon
+							b.T(`<svg width="20" height="20" viewBox="0 0 20 20" fill="none"
+            xmlns="http://www.w3.org/2000/svg"
+            style="vertical-align: middle;">
+            <rect x="4" y="4" width="4" height="12" rx="1" fill="currentColor"/>
+            <rect x="12" y="4" width="4" height="12" rx="1" fill="currentColor"/>
+            </svg>`),
 						),
-						b.AClass("btn btn-primary", "data-job-id", job.JobID, "onClick",
+						// Play button
+						b.AClass("btn btn-primary", "data-job-id", job.JobID, "title", "Resume Job", "onClick",
 							`fetch('/resume-job/' + this.getAttribute('data-job-id'), {method: 'POST'})
-						    .then(response => {
-						        if (response.ok) return response.json();
-						        throw new Error('Network response was not ok');
-						    })
-						    .then(data => console.log('Job resumed:', data))
-						    .catch(error => console.error('Error resuming job:', error))`).R(
-							b.Button().T("Resume"),
+            .then(response => {
+                if (response.ok) return response.json();
+                throw new Error('Network response was not ok');
+            })
+            .then(data => console.log('Job resumed:', data))
+            .catch(error => console.error('Error resuming job:', error))`).R(
+							// SVG: Play icon
+							b.T(`<svg width="20" height="20" viewBox="0 0 20 20" fill="none"
+            xmlns="http://www.w3.org/2000/svg"
+            style="vertical-align: middle;">
+            <polygon points="5,4 15,10 5,16" fill="currentColor"/>
+            </svg>`),
 						),
 					)
 

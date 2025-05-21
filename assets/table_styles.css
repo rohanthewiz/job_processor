@@ -4,7 +4,7 @@
     --background-color: #F2F7F7;
     --header-bg: #DCE6E6;
     --border-color: #C8D5D5;
-    --success-color: #42A99A;
+    --success-color: #26192f;
     --warning-color: #BF9A56;
     --danger-color: #D06862;
 }
@@ -79,8 +79,13 @@ tr:hover {
 }
 
 .badge-active {
-    background-color: rgba(66, 169, 154, 0.15);
+    background-color: rgba(54, 141, 120, 0.66);
     color: var(--success-color);
+}
+
+.badge-paused {
+    background-color: rgba(115, 82, 19, 0.56);
+    color: var(--warning-color);
 }
 
 .badge-pending {
@@ -108,4 +113,21 @@ tr:hover {
     th, td {
         padding: 0.5rem;
     }
+}
+
+.btn svg {
+    display: inline-block;
+    vertical-align: middle;
+}
+.btn-primary {
+    /*background-color: #337ab7; !* Example color, adjust as needed *!*/
+    color: #475f80;
+}
+.btn-primary:hover, .btn-primary:focus {
+    /*background-color: #23527c;*/
+    color: #7ccc3b;
+}
+.btn-primary:active {
+    /*background-color: #23527c;*/
+    color: #d03f14;
 }
