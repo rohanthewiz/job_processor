@@ -1,7 +1,7 @@
 :root {
     --primary-color: #4a6cf7;
     --secondary-color: #607D8B;
-    --background-color: #F2F7F7;
+    --background-color: #e3eaea;
     --header-bg: #DCE6E6;
     --border-color: #C8D5D5;
     --success-color: #26192f;
@@ -28,7 +28,7 @@ h1 {
     max-width: 1200px;
     margin: 0 auto;
     padding: 1rem;
-    background-color: #FBFEFE;
+    background-color: #e7edef;
     border-radius: 8px;
     box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
 }
@@ -77,10 +77,72 @@ tr:hover {
     text-transform: uppercase;
     letter-spacing: 0.05em;
 }
+/* Improved smooth glowing border animation for running status */
+@keyframes glow-border {
+    0% {
+        background: conic-gradient(
+                from 0deg,
+                rgba(54, 141, 120, 0.8) 0deg,
+                rgba(54, 141, 120, 0.8) 90deg,
+                transparent 90deg,
+                transparent 360deg
+        );
+    }
+    25% {
+        background: conic-gradient(
+                from 0deg,
+                rgba(54, 141, 120, 0.8) 0deg,
+                rgba(54, 141, 120, 0.8) 180deg,
+                transparent 180deg,
+                transparent 360deg
+        );
+    }
+    50% {
+        background: conic-gradient(
+                from 0deg,
+                rgba(54, 141, 120, 0.8) 0deg,
+                rgba(54, 141, 120, 0.8) 270deg,
+                transparent 270deg,
+                transparent 360deg
+        );
+    }
+    75% {
+        background: conic-gradient(
+                from 0deg,
+                rgba(54, 141, 120, 0.8) 0deg,
+                rgba(54, 141, 120, 0.8) 360deg
+        );
+    }
+    100% {
+        background: conic-gradient(
+                from 90deg,
+                rgba(54, 141, 120, 0.8) 0deg,
+                rgba(54, 141, 120, 0.8) 90deg,
+                transparent 90deg,
+                transparent 360deg
+        );
+    }
+}
 
 .badge-active {
     background-color: rgba(54, 141, 120, 0.66);
     color: var(--success-color);
+    position: relative;
+}
+
+.badge-active::after {
+    content: '';
+    position: absolute;
+    top: -3px;
+    left: -3px;
+    right: -3px;
+    bottom: -3px;
+    border-radius: 9999px;
+    padding: 3px;
+    mask: radial-gradient(farthest-side, transparent calc(100% - 3px), white calc(100% - 2px));
+    /*-webkit-mask: radial-gradient(farthest-side, transparent calc(100% - 3px), white calc(100% - 2px));*/
+    animation: glow-border 2s linear infinite;
+    pointer-events: none;
 }
 
 .badge-paused {
@@ -113,6 +175,13 @@ tr:hover {
     th, td {
         padding: 0.5rem;
     }
+}
+
+.btn-group {
+    display: flex;
+    gap: 0.5rem;
+    flex-wrap: nowrap;
+    align-items: center;
 }
 
 .btn svg {

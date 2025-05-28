@@ -426,6 +426,39 @@ func (m *DefaultJobManager) ResumeJob(id string) error {
 	return nil
 }
 
+// TriggerJobNow immediately executes a job regardless of its schedule
+func (m *DefaultJobManager) TriggerJobNow(id string) error {
+	m.mu.Lock()
+
+	// Check if job exists
+	_, exists := m.jobs[id]
+	if !exists {
+		m.mu.Unlock()
+		return fmt.Errorf("job %s not found", id)
+	}
+
+	// Check if job manager is shutting down
+	if m.shutdown {
+		m.mu.Unlock()
+		return fmt.Errorf("job manager is shutting down")
+	}
+
+	m.mu.Unlock()
+
+	// Execute the job in a goroutine
+	go m.executeJob(id)
+
+	// Let the system know that jobs have been updated
+	select {
+	case m.jobsUpdated <- "updated":
+		fmt.Println("Job update (triggered) notification sent")
+	default: // Non-blocking send to avoid blocking if no one is listening
+		// If the channel is full, we don't want to block
+	}
+
+	return nil
+}
+
 // DeleteJob removes a job from the system
 func (m *DefaultJobManager) DeleteJob(id string) error {
 	m.mu.Lock()

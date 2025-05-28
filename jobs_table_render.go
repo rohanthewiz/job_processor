@@ -105,38 +105,54 @@ func renderJobsTableRows(b *element.Builder, jobs []jobpro.JobRun) (x any) {
 					b.Td().T("")
 					// Controls
 					b.Td().R(
-						// Pause button
-						b.AClass("btn btn-primary", "data-job-id", job.JobID, "title", "Pause Job", "onClick",
-							`fetch('/pause-job/' + this.getAttribute('data-job-id'), {method: 'POST'})
-            .then(response => {
-                if (response.ok) return response.json();
-                throw new Error('Network response was not ok');
-            })
-            .then(data => console.log('Job paused:', data))
-            .catch(error => console.error('Error pausing job:', error))`).R(
-							// SVG: Pause icon
-							b.T(`<svg width="20" height="20" viewBox="0 0 20 20" fill="none"
-            xmlns="http://www.w3.org/2000/svg"
-            style="vertical-align: middle;">
-            <rect x="4" y="4" width="4" height="12" rx="1" fill="currentColor"/>
-            <rect x="12" y="4" width="4" height="12" rx="1" fill="currentColor"/>
-            </svg>`),
-						),
-						// Play button
-						b.AClass("btn btn-primary", "data-job-id", job.JobID, "title", "Resume Job", "onClick",
-							`fetch('/resume-job/' + this.getAttribute('data-job-id'), {method: 'POST'})
-            .then(response => {
-                if (response.ok) return response.json();
-                throw new Error('Network response was not ok');
-            })
-            .then(data => console.log('Job resumed:', data))
-            .catch(error => console.error('Error resuming job:', error))`).R(
-							// SVG: Play icon
-							b.T(`<svg width="20" height="20" viewBox="0 0 20 20" fill="none"
-            xmlns="http://www.w3.org/2000/svg"
-            style="vertical-align: middle;">
-            <polygon points="5,4 15,10 5,16" fill="currentColor"/>
-            </svg>`),
+						b.DivClass("btn-group").R(
+							// Play button
+							b.AClass("btn btn-primary", "data-job-id", job.JobID, "title", "Resume Job", "onClick",
+								`fetch('/resume-job/' + this.getAttribute('data-job-id'), {method: 'POST'})
+                .then(response => {
+                    if (response.ok) return response.json();
+                    throw new Error('Network response was not ok');
+                })
+                .then(data => console.log('Job resumed:', data))
+                .catch(error => console.error('Error resuming job:', error))`).R(
+								b.T(`<svg width="20" height="20" viewBox="0 0 20 20" fill="none"
+                xmlns="http://www.w3.org/2000/svg"
+                style="vertical-align: middle;">
+                <polygon points="5,4 15,10 5,16" fill="currentColor"/>
+                </svg>`),
+							),
+							// Pause button
+							b.AClass("btn btn-primary", "data-job-id", job.JobID, "title", "Pause Job", "onClick",
+								`fetch('/pause-job/' + this.getAttribute('data-job-id'), {method: 'POST'})
+                .then(response => {
+                    if (response.ok) return response.json();
+                    throw new Error('Network response was not ok');
+                })
+                .then(data => console.log('Job paused:', data))
+                .catch(error => console.error('Error pausing job:', error))`).R(
+								b.T(`<svg width="20" height="20" viewBox="0 0 20 20" fill="none"
+                xmlns="http://www.w3.org/2000/svg"
+                style="vertical-align: middle;">
+                <rect x="4" y="4" width="4" height="12" rx="1" fill="currentColor"/>
+                <rect x="12" y="4" width="4" height="12" rx="1" fill="currentColor"/>
+                </svg>`),
+							),
+							// Start Now button
+							b.AClass("btn btn-primary", "data-job-id", job.JobID, "title", "Start Now", "onClick",
+								`fetch('/trigger-job-now/' + this.getAttribute('data-job-id'), {method: 'POST'})
+                .then(response => {
+                    if (response.ok) return response.json();
+                    throw new Error('Network response was not ok');
+                })
+                .then(data => console.log('Job triggered:', data))
+                .catch(error => console.error('Error triggering job:', error))`).R(
+								b.T(`<svg width="20" height="20" viewBox="0 0 20 20" fill="none"
+                xmlns="http://www.w3.org/2000/svg"
+                style="vertical-align: middle;">
+                <polygon points="3,4 9,10 3,16" fill="currentColor"/>
+                <polygon points="11,4 17,10 11,16" fill="currentColor"/>
+                </svg>`),
+							),
 						),
 					)
 

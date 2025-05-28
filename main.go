@@ -36,7 +36,7 @@ func main() {
 		ID:         "job1",
 		Name:       "Example Job 1",
 		IsPeriodic: true,
-		Schedule:   "*/10 * * * * *", // Every 10s
+		Schedule:   "*/15 * * * * *", // Every 10s
 		JobFunction: func() error {
 			fmt.Println("doing work")
 			return nil
@@ -132,6 +132,23 @@ func main() {
 			return ctx.WriteJSON(map[string]string{
 				"jobID":  jobID,
 				"status": "resumed",
+			})
+		})
+
+		s.Post("/trigger-job-now/:job-id", func(ctx rweb.Context) error {
+			jobID := ctx.Request().Param("job-id")
+
+			if err := jobMgr.TriggerJobNow(jobID); err != nil {
+				logger.LogErr(err, "Failed to trigger job", "jobID", jobID)
+				ctx.Status(500)
+				return ctx.WriteJSON(map[string]string{
+					"error": err.Error(),
+				})
+			}
+
+			return ctx.WriteJSON(map[string]string{
+				"jobID":  jobID,
+				"status": "triggered",
 			})
 		})
 
