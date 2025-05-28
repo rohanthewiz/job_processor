@@ -17,7 +17,7 @@ const jobEvent = "job-update"
 func renderJobsTable(jobs []jobpro.JobRun) string {
 	b := element.NewBuilder()
 	cols := []string{"Job", "ID", "Freq", "Status", "Created", "Updated",
-		"Run ID", "Run Start", "Run Duration", "Run Status", "Run Error Msg", "Controls"}
+		"Run&nbsp;ID", "Run Start", "Duration", "Status", "Error", "Controls"}
 
 	b.Html().R(
 		b.Head().R(
@@ -69,7 +69,7 @@ func renderJobsTableRows(b *element.Builder, jobs []jobpro.JobRun) (x any) {
 			b.Wrap(func() {
 				// Some Job level attributes
 				if job.ResultId == 0 { // main job
-					b.Td().T(job.FreqType)
+					b.TdClass("cron").T(job.FreqType)
 
 					statusClass := "badge badge-inactive"
 					switch strings.ToLower(job.JobStatus) {
@@ -147,11 +147,11 @@ func renderJobsTableRows(b *element.Builder, jobs []jobpro.JobRun) (x any) {
                 .then(data => console.log('Job triggered:', data))
                 .catch(error => console.error('Error triggering job:', error))`).R(
 								b.T(`<svg width="20" height="20" viewBox="0 0 20 20" fill="none"
-                xmlns="http://www.w3.org/2000/svg"
-                style="vertical-align: middle;">
-                <polygon points="3,4 9,10 3,16" fill="currentColor"/>
-                <polygon points="11,4 17,10 11,16" fill="currentColor"/>
-                </svg>`),
+				xmlns="http://www.w3.org/2000/svg"
+				style="vertical-align: middle;">
+				<polygon points="3,4 11,10 3,16" fill="currentColor"/>
+				<rect x="13" y="4" width="3" height="12" fill="currentColor"/>
+				</svg>`),
 							),
 						),
 					)
