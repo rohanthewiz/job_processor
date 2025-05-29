@@ -30,8 +30,6 @@ func main() {
 	}
 
 	// Register a job - we should be able to register jobs from any package.
-	// It is recommended to register jobs from your package init functions.
-	// This one is here as an example
 	jobpro.RegisterJob(jobpro.JobConfig{
 		ID:         "job1",
 		Name:       "Example Job 1",
@@ -69,11 +67,11 @@ func main() {
 
 		// Endpoint to get the jobs table rows
 		// Typically this is called after an SSE event is received on job update
-		s.Get("/jobs-table-rows", func(ctx rweb.Context) error {
+		s.Get("/jobs/get-table-rows", func(ctx rweb.Context) error {
 			jobs, err := jobMgr.ListJobs()
 			if err != nil {
 				logger.LogErr(err, "Failed to list jobs")
-				return serr.Wrap(err)
+				return serr.Wrap(err) // guaranteed
 			}
 
 			b := element.NewBuilder()
@@ -83,7 +81,7 @@ func main() {
 		})
 
 		// SSE endpoint for job updates
-		s.Get("/jobs-update", func(ctx rweb.Context) error {
+		s.Get("/jobs/update-notify", func(ctx rweb.Context) error {
 			fmt.Println("Handling SSE request")
 			out := make(chan any, 1)
 			_, err := pubsub.SubscribeToUpdates(out)
@@ -100,7 +98,7 @@ func main() {
 			return err
 		})
 
-		s.Post("/pause-job/:job-id", func(ctx rweb.Context) error {
+		s.Post("/jobs/pause/:job-id", func(ctx rweb.Context) error {
 			jobID := ctx.Request().Param("job-id")
 
 			// Assume your jobpro.Manager has a PauseJob method
@@ -118,7 +116,7 @@ func main() {
 			})
 		})
 
-		s.Post("/resume-job/:job-id", func(ctx rweb.Context) error {
+		s.Post("/jobs/resume/:job-id", func(ctx rweb.Context) error {
 			jobID := ctx.Request().Param("job-id")
 
 			if err := jobMgr.ResumeJob(jobID); err != nil {
@@ -135,7 +133,7 @@ func main() {
 			})
 		})
 
-		s.Post("/trigger-job-now/:job-id", func(ctx rweb.Context) error {
+		s.Post("/jobs/run-now/:job-id", func(ctx rweb.Context) error {
 			jobID := ctx.Request().Param("job-id")
 
 			if err := jobMgr.TriggerJobNow(jobID); err != nil {

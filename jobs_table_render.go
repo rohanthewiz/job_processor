@@ -44,9 +44,9 @@ func renderJobsTable(jobs []jobpro.JobRun) string {
 							),
 						),
 						b.TBody("id", "jobs-table-body",
-							"hx-ext", "sse", "sse-connect", "/jobs-update",
+							"hx-ext", "sse", "sse-connect", "/jobs/update-notify",
 							"hx-trigger", "sse:"+jobEvent,
-							"hx-get", "/jobs-table-rows",
+							"hx-get", "/jobs/get-table-rows",
 							"hx-swap", "innerHTML").R( // It seems best to do the SSE Swap on the immediate children
 
 							renderJobsTableRows(b, jobs),
@@ -108,7 +108,7 @@ func renderJobsTableRows(b *element.Builder, jobs []jobpro.JobRun) (x any) {
 						b.DivClass("btn-group").R(
 							// Play button
 							b.AClass("btn btn-primary", "data-job-id", job.JobID, "title", "Resume Job", "onClick",
-								`fetch('/resume-job/' + this.getAttribute('data-job-id'), {method: 'POST'})
+								`fetch('/jobs/resume/' + this.getAttribute('data-job-id'), {method: 'POST'})
                 .then(response => {
                     if (response.ok) return response.json();
                     throw new Error('Network response was not ok');
@@ -123,7 +123,7 @@ func renderJobsTableRows(b *element.Builder, jobs []jobpro.JobRun) (x any) {
 							),
 							// Pause button
 							b.AClass("btn btn-primary", "data-job-id", job.JobID, "title", "Pause Job", "onClick",
-								`fetch('/pause-job/' + this.getAttribute('data-job-id'), {method: 'POST'})
+								`fetch('/jobs/pause/' + this.getAttribute('data-job-id'), {method: 'POST'})
                 .then(response => {
                     if (response.ok) return response.json();
                     throw new Error('Network response was not ok');
@@ -139,7 +139,7 @@ func renderJobsTableRows(b *element.Builder, jobs []jobpro.JobRun) (x any) {
 							),
 							// Start Now button
 							b.AClass("btn btn-primary", "data-job-id", job.JobID, "title", "Start Now", "onClick",
-								`fetch('/trigger-job-now/' + this.getAttribute('data-job-id'), {method: 'POST'})
+								`fetch('/jobs/run-now/' + this.getAttribute('data-job-id'), {method: 'POST'})
                 .then(response => {
                     if (response.ok) return response.json();
                     throw new Error('Network response was not ok');
