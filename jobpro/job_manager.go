@@ -9,6 +9,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/robfig/cron/v3"
+	"github.com/rohanthewiz/logger"
 	"github.com/rohanthewiz/serr"
 )
 
@@ -46,6 +47,34 @@ func NewJobManager(store JobStore) *DefaultJobManager {
 
 	// Start the cron scheduler
 	cronScheduler.Start()
+
+	// Start the job results cleanup goroutine
+	go func() {
+		logger.Info("Launching cleanup goroutine")
+		// Clean up job results older than one week
+		oneWeek := 7 * 24 * time.Hour
+		ticker := time.NewTicker(1 * time.Hour)
+
+		defer ticker.Stop()
+
+		// Run cleanup immediately on startup
+		if err := store.CleanupJobResults(oneWeek); err != nil {
+			logger.F("Error cleaning up old job results: %v", err)
+		}
+
+		// Then run every hour
+		for {
+			select {
+			case <-ticker.C:
+				if mgr.shutdown {
+					return
+				}
+				if err := store.CleanupJobResults(oneWeek); err != nil {
+					logger.F("Error cleaning up old job results: %v", err)
+				}
+			}
+		}
+	}()
 
 	return mgr
 }

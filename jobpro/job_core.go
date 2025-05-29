@@ -86,7 +86,11 @@ type JobStore interface {
 	RecordJobResult(result JobResult) error
 	// GetJobResults retrieves historical results for a job
 	GetJobResults(jobID string, limit int) ([]JobResult, error)
+	// GetJobRuns retrieves historical runs for all jobs
 	GetJobRuns(limit int) ([]JobRun, error)
+	// CleanupOldJobResults deletes job results older than the specified duration
+	CleanupJobResults(olderThan time.Duration) error
+	// Close closes the database connection
 	Close() error
 }
 

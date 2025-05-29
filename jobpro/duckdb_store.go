@@ -16,10 +16,13 @@ type DuckDBStore struct {
 
 // NewDuckDBStore creates a new DuckDB-backed job store
 func NewDuckDBStore(dbPath string) (*DuckDBStore, error) {
-	if dbPath == "" {
-		dbPath = "(in-memory)"
-	}
-	fmt.Printf("Job Store DB Path: %s\n", dbPath)
+	fmt.Printf("Job Store DB Path: %s\n",
+		func() string {
+			if dbPath != "" {
+				return dbPath
+			}
+			return "(in-memory)"
+		}())
 
 	db, err := sql.Open("duckdb", dbPath)
 	if err != nil {
@@ -366,6 +369,31 @@ select * from runs order by created_at desc, result_id desc nulls first
 	}
 
 	return results, nil
+}
+
+// CleanupJobResults deletes job results older than the specified duration
+func (s *DuckDBStore) CleanupJobResults(olderThan time.Duration) error {
+	cutoffTime := time.Now().Add(-olderThan)
+
+	result, err := s.db.Exec(`
+		DELETE FROM job_results 
+		WHERE end_time < ?
+	`, cutoffTime)
+
+	if err != nil {
+		return fmt.Errorf("failed to cleanup old job results: %w", err)
+	}
+
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("failed to get rows affected: %w", err)
+	}
+
+	if rowsAffected > 0 {
+		fmt.Printf("Cleaned up %d job results older than %s\n", rowsAffected, olderThan)
+	}
+
+	return nil
 }
 
 // Close closes the database connection
