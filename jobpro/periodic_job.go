@@ -9,8 +9,8 @@ import (
 // PeriodicJob is a job that logs messages at possibly multiple intervals
 type PeriodicJob struct {
 	BaseJob
-	Period time.Duration // Allows an additional interval on top of cron -- not using for now
-	Call   func() error  // Function to call at each interval -- overrides BaseJob.WorkFunc
+	// Period time.Duration // Allows an additional interval on top of cron -- not using for now
+	Call func() error // Function to call at each interval -- overrides BaseJob.WorkFunc
 }
 
 // NewPeriodicJob creates a new logging job
@@ -43,7 +43,7 @@ func (j *PeriodicJob) periodicRun(ctx context.Context) (results string, err erro
 
 	runCount := 0
 
-	if j.Period > 0 { // If Period is set, use a ticker -- let's not do this for now
+	/*	if j.Period > 0 { // If Period is set, use a ticker -- let's not do this for now
 		ticker := time.NewTicker(j.Period)
 		defer ticker.Stop()
 
@@ -67,22 +67,22 @@ func (j *PeriodicJob) periodicRun(ctx context.Context) (results string, err erro
 			// Small sleep to prevent CPU spinning
 			time.Sleep(100 * time.Millisecond)
 		}
-	} else {
-		// No Period set, just run once
-		select {
-		case <-ctx.Done():
-			return "Job interrupted before execution", ctx.Err()
+	} else {*/
+	// No Period set, just run once
+	select {
+	case <-ctx.Done():
+		return "Job interrupted before execution", ctx.Err()
 
-		case <-j.timerOrNil(timer):
-			return "Job timed out before execution", nil
+	case <-j.timerOrNil(timer):
+		return "Job timed out before execution", nil
 
-		default:
-			// Execute once
-			fmt.Println("Running job")
-			err = j.Call() // or j.Call() if implemented
-			runCount++
+	default:
+		// Execute once
+		fmt.Println("Running periodic job")
+		err = j.Call()
+		runCount++
 
-			return fmt.Sprintf("Periodic job completed with %d run", runCount), nil
-		}
+		return fmt.Sprintf("Periodic job completed with %d run(s)", runCount), nil
 	}
+	// }
 }
