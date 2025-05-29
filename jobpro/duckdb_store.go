@@ -3,6 +3,7 @@ package jobpro
 import (
 	"database/sql"
 	"fmt"
+	"job_processor/util"
 	"time"
 
 	_ "github.com/marcboeker/go-duckdb"
@@ -17,12 +18,7 @@ type DuckDBStore struct {
 // NewDuckDBStore creates a new DuckDB-backed job store
 func NewDuckDBStore(dbPath string) (*DuckDBStore, error) {
 	fmt.Printf("Job Store DB Path: %s\n",
-		func() string {
-			if dbPath != "" {
-				return dbPath
-			}
-			return "(in-memory)"
-		}())
+		util.Tern(dbPath == "", "(in-memory)", dbPath))
 
 	db, err := sql.Open("duckdb", dbPath)
 	if err != nil {
