@@ -37,11 +37,11 @@ type jobConfigs struct {
 //		JobFunction: func() error { fmt.Println("doing work"); return nil }, // Replace with actual job function
 //	})
 //
-//	RegisterJob(JobConfig{ // One-time job -- coming soon!
+//	RegisterJob(JobConfig{ // One-time job
 //		ID:         "job2",
 //		Name:       "Example Job 2",
 //		IsPeriodic: false,
-//		Schedule:   "",
+//		Schedule:   "<time.Time>",
 //		JobFunction: func() error {  fmt.Println("doing work"); return nil }, // Replace with actual job function
 //		MaxRunTime: 300,
 //	})
@@ -74,23 +74,16 @@ func LoadJobs(mgr JobMgr) error {
 
 // setupJob adds registered jobs into the manager
 func setupJob(mgr JobMgr, jc JobConfig) error {
-	var job Job
-	if jc.IsPeriodic {
-		job = NewPeriodicJob(jc)
-	} else {
-		// TODO - handle one-time jobs here
-		return serr.New("One-time jobs are not supported yet")
-	}
+	job := NewScheduledJob(jc)
 
-	periodicID, err := mgr.SetupJob(job, jc.Schedule)
+	jobID, err := mgr.SetupJob(job, jc.Schedule)
 	if err != nil {
-		return serr.Wrap(err, "failed to create job")
+		return serr.Wrap(err, "failed to load job")
 	}
-	log.Printf("Created job: %v\n", jc)
+	log.Printf("Load job: %v\n", jc)
 
-	// Start the periodic job
-	if err := mgr.StartJob(periodicID); err != nil {
-		logger.LogErr(serr.Wrap(err, "Failed to start periodic job"))
+	if err := mgr.StartJob(jobID); err != nil {
+		logger.LogErr(serr.Wrap(err, "Failed to start job"))
 	}
 
 	return nil

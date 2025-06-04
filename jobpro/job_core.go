@@ -47,10 +47,11 @@ type Job interface {
 
 // JobDef contains metadata about a job
 type JobDef struct {
-	JobID       string    // Unique identifier
-	JobName     string    // Human-readable name
-	SchedType   FreqType  // Type of schedule
-	Schedule    string    // Cron expression for periodic jobs
+	JobID     string   // Unique identifier
+	JobName   string   // Human-readable name
+	SchedType FreqType // Type of schedule
+	// Cron expression for periodic jobs or time.Time to run for one-time jobs
+	Schedule    string
 	NextRunTime time.Time // When to next run this job
 	Status      JobStatus // Current status
 	CreatedAt   time.Time // When the job was created
