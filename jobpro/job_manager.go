@@ -146,7 +146,7 @@ func (m *DefaultJobManager) processResults() {
 	}
 }
 
-// CreateJob adds a new job to the system
+// SetupJob adds a new job to the system
 func (m *DefaultJobManager) SetupJob(job Job, schedule string) (string, error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
@@ -168,6 +168,7 @@ func (m *DefaultJobManager) SetupJob(job Job, schedule string) (string, error) {
 
 	// Determine next run time
 	var nextRun time.Time
+
 	if job.Type() == Periodic && schedule != "" {
 		// Parse the cron schedule
 		scheduler, err := cron.NewParser(cron.Second | cron.Minute | cron.Hour | cron.Dom | cron.Month | cron.Dow).Parse(schedule)
@@ -181,7 +182,7 @@ func (m *DefaultJobManager) SetupJob(job Job, schedule string) (string, error) {
 		if schedule == "" {
 			nextRun = time.Now()
 		} else {
-			// Parse the schedule as a specific time
+			// Parse the schedule as a specific time - this is legit logic
 			parsedTime, err := time.Parse(time.RFC3339, schedule)
 			if err != nil {
 				return "", serr.F("invalid time format for one-time job (should be time.RFC3339): %w", err)
@@ -214,6 +215,7 @@ func (m *DefaultJobManager) SetupJob(job Job, schedule string) (string, error) {
 }
 
 // StartJob begins execution of a job
+// WIP
 func (m *DefaultJobManager) StartJob(id string) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
@@ -244,12 +246,13 @@ func (m *DefaultJobManager) StartJob(id string) error {
 		return serr.Wrap(err, "failed to update job status")
 	}
 
+	jobDef, err := m.store.GetJob(id)
+	if err != nil {
+		return serr.Wrap(err, "failed to get job details")
+	}
+
 	// If it's a periodic job, schedule it with cron
 	if job.Type() == Periodic {
-		jobDef, err := m.store.GetJob(id)
-		if err != nil {
-			return serr.Wrap(err, "failed to get job details")
-		}
 
 		// Schedule with cron if not already scheduled
 		if _, exists := m.cronEntries[id]; !exists {
@@ -261,9 +264,12 @@ func (m *DefaultJobManager) StartJob(id string) error {
 			}
 			m.cronEntries[id] = entryID
 		}
-	} else {
-		// For one-time jobs, just execute it once
-		go m.executeJob(id)
+	} else { // For one-time jobs, execute it on schedule
+		go func() {
+			_ = RunAt(jobDef.NextRunTime, func() { // TODO - we can use the returned timer to cancel
+				m.executeJob(id)
+			})
+		}()
 	}
 
 	return nil

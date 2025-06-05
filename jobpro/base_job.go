@@ -29,7 +29,7 @@ func NewBaseJob(id, name string, freqType FreqType, workTime time.Duration,
 }
 */
 
-// Run executes the job and returns stats
+// Run executes the job's workFunc and returns stats
 func (j *BaseJob) Run(ctx context.Context) (Stats, error) {
 	stats := Stats{
 		StartTimeUTC: time.Now().UTC(),
@@ -54,7 +54,7 @@ func (j *BaseJob) Run(ctx context.Context) (Stats, error) {
 
 	// Run the actual worker
 	go func() {
-		msg, err := j.workFunc(ctx)
+		msg, err := j.workFunc(ctx) // Run it!
 		resultCh <- Result{msg, err}
 	}()
 

@@ -6,6 +6,7 @@ import (
 	"job_processor/pubsub"
 	"job_processor/shutdown"
 	"os"
+	"time"
 
 	"github.com/rohanthewiz/element"
 	"github.com/rohanthewiz/logger"
@@ -31,12 +32,24 @@ func main() {
 
 	// Register a job - we should be able to register jobs from any package.
 	jobpro.RegisterJob(jobpro.JobConfig{
-		ID:         "job1",
-		Name:       "Example Job 1",
+		ID:         "periodicJob1",
+		Name:       "Periodic Job 1",
 		IsPeriodic: true,
-		Schedule:   "*/15 * * * * *", // Every 10s
+		Schedule:   "*/15 * * * * *", // Every 15s
 		JobFunction: func() error {
-			fmt.Println("doing work")
+			fmt.Println("Periodic job doing work")
+			return nil
+		},
+	})
+
+	// Register a Onetime job
+	jobpro.RegisterJob(jobpro.JobConfig{
+		ID:         "onetimeJob1",
+		Name:       "Onetime Job 1",
+		IsPeriodic: false,
+		Schedule:   time.Now().Add(30 * time.Second).Format(time.RFC3339),
+		JobFunction: func() error {
+			fmt.Println("One time job doing work")
 			return nil
 		},
 	})
@@ -46,7 +59,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	go func() {
+	go func() { // Todo move this to "web" package
 		s := rweb.NewServer(rweb.ServerOptions{
 			Address: fmt.Sprintf(":%s", "8000"),
 			Verbose: true,

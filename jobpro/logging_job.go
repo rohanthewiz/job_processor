@@ -7,6 +7,8 @@ import (
 )
 
 // LoggingJob is a job that logs messages at possibly multiple intervals
+// It is not recommened to use this  as it is adding timing on top of a cron system
+// better to stick to the standard ScheduledJob
 type LoggingJob struct {
 	BaseJob
 	logIntervals []time.Duration // When to log messages
