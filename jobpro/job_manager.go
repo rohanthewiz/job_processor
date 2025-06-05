@@ -3,6 +3,7 @@ package jobpro
 import (
 	"context"
 	"fmt"
+	"job_processor/util"
 	"log"
 	"sync"
 	"time"
@@ -182,10 +183,10 @@ func (m *DefaultJobManager) SetupJob(job Job, schedule string) (string, error) {
 		if schedule == "" {
 			nextRun = time.Now()
 		} else {
-			// Parse the schedule as a specific time - this is legit logic
-			parsedTime, err := time.Parse(time.RFC3339, schedule)
+			// Parse the schedule using our flexible parser
+			parsedTime, err := util.ParseSchedule(schedule)
 			if err != nil {
-				return "", serr.F("invalid time format for one-time job (should be time.RFC3339): %w", err)
+				return "", serr.F("invalid time format for one-time job: %w", err)
 			}
 			nextRun = parsedTime
 		}

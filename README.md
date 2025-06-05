@@ -32,17 +32,14 @@ go get github.com/rohanthewiz/jobprocessor
 ### Basic Usage
 See `main.go` for a complete example.
 
-```go
-
 ### Registering Jobs
-
-- Periodic jobs are registered with a cron schedule
-- Onetime jobs are registered with a time string of when to run
 
 Register jobs using `jobpro.RegisterJob()` with a `JobConfig`:
 
+#### Periodic Jobs
+Periodic jobs use cron syntax for scheduling:
+
 ```go
-// Register a periodic job
 jobpro.RegisterJob(jobpro.JobConfig{
 	ID:         "periodicJob1",
 	Name:       "Periodic Job 1",
@@ -53,15 +50,45 @@ jobpro.RegisterJob(jobpro.JobConfig{
 		return nil
 	},
 })
+```
 
-// Register a one-time job
+#### One-Time Jobs
+One-time jobs support multiple time format options:
+
+**Relative Time Formats:**
+- `"in 30m"` - 30 minutes from now
+- `"+1h"` - 1 hour from now
+- `"5m"` - 5 minutes from now
+- `"in 2h30m"` - 2.5 hours from now
+
+**Absolute Time Formats:**
+- RFC3339: `"2024-01-15T14:30:00-08:00"`
+- With timezone abbreviation: `"2024-01-15 14:30:00 PST"`
+- With IANA timezone: `"2024-01-15 14:30:00 America/Los_Angeles"`
+- US format: `"01/15/2024 2:30 PM EST"`
+- Human readable: `"Jan 15, 2024 3:04 PM MST"`
+
+```go
+// Using relative time
 jobpro.RegisterJob(jobpro.JobConfig{
 	ID:         "onetimeJob1",
 	Name:       "Onetime Job 1",
 	IsPeriodic: false,
-	Schedule:   time.Now().Add(30 * time.Second).Format(time.RFC3339),
+	Schedule:   "in 30s", // Runs 30 seconds from now
 	JobFunction: func() error {
 		fmt.Println("One time job doing work")
+		return nil
+	},
+})
+
+// Using absolute time with timezone
+jobpro.RegisterJob(jobpro.JobConfig{
+	ID:         "onetimeJob2",
+	Name:       "Onetime Job 2",
+	IsPeriodic: false,
+	Schedule:   "2024-12-25 09:00:00 EST",
+	JobFunction: func() error {
+		fmt.Println("Christmas morning job")
 		return nil
 	},
 })

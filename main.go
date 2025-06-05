@@ -6,7 +6,6 @@ import (
 	"job_processor/pubsub"
 	"job_processor/shutdown"
 	"os"
-	"time"
 
 	"github.com/rohanthewiz/element"
 	"github.com/rohanthewiz/logger"
@@ -42,12 +41,12 @@ func main() {
 		},
 	})
 
-	// Register a Onetime job
+	// Register a Onetime job - now supports multiple time formats!
 	jobpro.RegisterJob(jobpro.JobConfig{
 		ID:         "onetimeJob1",
 		Name:       "Onetime Job 1",
 		IsPeriodic: false,
-		Schedule:   time.Now().Add(30 * time.Second).Format(time.RFC3339),
+		Schedule:   "in 30s", // Can also use: "+30s", "30s", "2024-01-15 14:30:00 PST", etc. See README
 		JobFunction: func() error {
 			fmt.Println("One time job doing work")
 			return nil
