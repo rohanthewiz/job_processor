@@ -13,7 +13,6 @@ A lightweight, flexible job scheduling and processing system written in Go.
 
 ## Core Components
 
-- **Job Interface**: Any struct that implements the `Run()` method can be a job
 - **JobManager**: Handles job lifecycle and scheduling
 - **JobStore**: Persists job definitions and execution results
 - **Stats**: Captures runtime metrics for job executions
@@ -23,7 +22,6 @@ A lightweight, flexible job scheduling and processing system written in Go.
 ### Prerequisites
 
 - Go 1.22+
-- DuckDB
 
 ### Installation
 
@@ -36,62 +34,37 @@ See `main.go` for a complete example.
 
 ```go
 
-### Creating Custom Jobs - This is the basic idea but may not be complete. See the example in `main.go`.
+### Registering Jobs
 
-Implement the `Job` interface to create custom jobs:
+- Periodic jobs are registered with a cron schedule
+- Onetime jobs are registered with a time string of when to run
 
-```go
-type MyCustomJob struct {
-	id   string
-	name string
-}
-
-func (j *MyCustomJob) ID() string {
-	return j.id
-}
-
-func (j *MyCustomJob) Name() string {
-	return j.name
-}
-
-func (j *MyCustomJob) Type() jobprocessor.ScheduleType {
-	return jobprocessor.SchedulePeriodic
-}
-
-func (j *MyCustomJob) Run(ctx context.Context) (jobprocessor.Stats, error) {
-	stats := jobprocessor.Stats{
-		StartTimeUTC: time.Now().UTC(),
-	}
-	
-	// Your custom job logic here
-	// ...
-	
-	stats.Duration = time.Since(stats.StartTimeUTC)
-	stats.SuccessMsg = "Job completed successfully"
-	return stats, nil
-}
-```
-
-## Scheduling Jobs
-
-### One-Time Jobs
-
-For one-time jobs, specify the execution time in RFC3339 format:
+Register jobs using `jobpro.RegisterJob()` with a `JobConfig`:
 
 ```go
-jobID, err := manager.CreateJob(job, time.Now().Add(1*time.Hour).Format(time.RFC3339))
-```
+// Register a periodic job
+jobpro.RegisterJob(jobpro.JobConfig{
+	ID:         "periodicJob1",
+	Name:       "Periodic Job 1",
+	IsPeriodic: true,
+	Schedule:   "*/15 * * * * *", // Every 15 seconds
+	JobFunction: func() error {
+		fmt.Println("Periodic job doing work")
+		return nil
+	},
+})
 
-### Periodic Jobs
-
-For periodic jobs, use standard cron syntax:
-
-```go
-// Run every 15 minutes
-jobID, err := manager.CreateJob(job, "0 */15 * * * *")
-
-// Run at 2:30am every day
-jobID, err := manager.CreateJob(job, "0 30 2 * * *")
+// Register a one-time job
+jobpro.RegisterJob(jobpro.JobConfig{
+	ID:         "onetimeJob1",
+	Name:       "Onetime Job 1",
+	IsPeriodic: false,
+	Schedule:   time.Now().Add(30 * time.Second).Format(time.RFC3339),
+	JobFunction: func() error {
+		fmt.Println("One time job doing work")
+		return nil
+	},
+})
 ```
 
 ## Job Lifecycle Operations
