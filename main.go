@@ -34,7 +34,7 @@ func main() {
 		ID:         "periodicJob1",
 		Name:       "Periodic Job 1",
 		IsPeriodic: true,
-		Schedule:   "*/15 * * * * *", // Every 15s
+		Schedule:   "*/15 * * * * *",
 		JobFunction: func() error {
 			fmt.Println("Periodic job doing work")
 			return nil

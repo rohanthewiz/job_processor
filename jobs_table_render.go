@@ -3,6 +3,7 @@ package main
 import (
 	_ "embed"
 	"job_processor/jobpro"
+	"job_processor/util"
 	"strings"
 
 	"github.com/rohanthewiz/element"
@@ -69,7 +70,23 @@ func renderJobsTableRows(b *element.Builder, jobs []jobpro.JobRun) (x any) {
 			b.Wrap(func() {
 				// Some Job level attributes
 				if job.ResultId == 0 { // main job
-					b.TdClass("cron").T(job.FreqType)
+					// Add tooltip to frequency column
+					tooltip := ""
+					// Use ScheduleType to determine job type
+					if strings.ToLower(job.ScheduleType) == "onetime" {
+						if !job.NextRunTime.IsZero() {
+							tooltip = util.FormatDurationUntil(job.NextRunTime)
+						}
+					} else if strings.ToLower(job.ScheduleType) == "periodic" && job.FreqType != "" {
+						// It's a periodic job with a cron expression
+						tooltip = util.ParseCronToEnglish(job.FreqType)
+					}
+
+					if tooltip != "" {
+						b.TdClass("cron tooltip", "title", tooltip).T(job.FreqType)
+					} else {
+						b.TdClass("cron").T(job.FreqType)
+					}
 
 					statusClass := "badge badge-inactive"
 					switch strings.ToLower(job.JobStatus) {

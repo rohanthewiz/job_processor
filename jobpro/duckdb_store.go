@@ -277,7 +277,10 @@ type JobRun struct {
 	JobID        string
 	JobName      string
 	FreqType     string
+	Schedule     string
+	NextRunTime  time.Time
 	JobStatus    string
+	ScheduleType string
 	CreatedAt    time.Time
 	UpdatedAt    time.Time
 	ResultId     int64
@@ -288,14 +291,17 @@ type JobRun struct {
 }
 
 type JobRunDBRow struct {
-	JobID     string
-	JobName   sql.NullString
-	FreqType  sql.NullString
-	JobStatus sql.NullString
-	CreatedAt sql.NullTime
-	UpdatedAt sql.NullTime
-	ResultId  sql.NullInt64
-	StartTime sql.NullTime
+	JobID        string
+	JobName      sql.NullString
+	FreqType     sql.NullString
+	Schedule     sql.NullString
+	NextRunTime  sql.NullTime
+	JobStatus    sql.NullString
+	ScheduleType sql.NullString
+	CreatedAt    sql.NullTime
+	UpdatedAt    sql.NullTime
+	ResultId     sql.NullInt64
+	StartTime    sql.NullTime
 	// Duration     time.Duration
 	ResultStatus sql.NullString
 	ErrorMsg     sql.NullString
@@ -310,13 +316,14 @@ create temp table runs as (with results as (
        select result_id, job_id, start_time, duration_micro, status, error_msg
        from job_results
        )
-       select j.job_id, null job_name, null frequency, null status,
-              j.created_at, null updated_at,
+       select j.job_id, null job_name, null frequency, null schedule, null next_run_time, null status,
+              null schedule_type, j.created_at, null updated_at,
                r.result_id, r.start_time, r.duration_micro, r.status result_status, r.error_msg
        from results r join jobs j on r.job_id = j.job_id
        union all
-       select j.job_id, j.job_name, case when j.schedule is null or j.schedule = '' then 'one-time' else j.schedule end as frequency, j.status,
-              j.created_at, j.updated_at,
+       select j.job_id, j.job_name, case when j.schedule is null or j.schedule = '' then 'one-time' else j.schedule end as frequency, 
+              j.schedule, j.next_run_time, j.status,
+              j.schedule_type, j.created_at, j.updated_at,
                null as result_id, null as start_time, null as duration_micro, null as result_status, null as error_msg
       from jobs j);
 select * from runs order by created_at desc, result_id desc nulls first
@@ -336,7 +343,8 @@ select * from runs order by created_at desc, result_id desc nulls first
 		var durationMicro sql.NullInt64 // duration gets special handling
 
 		err = rows.Scan(
-			&result.JobID, &result.JobName, &result.FreqType, &result.JobStatus, &result.CreatedAt, &result.UpdatedAt,
+			&result.JobID, &result.JobName, &result.FreqType, &result.Schedule, &result.NextRunTime, &result.JobStatus,
+			&result.ScheduleType, &result.CreatedAt, &result.UpdatedAt,
 			&result.ResultId, &result.StartTime, &durationMicro,
 			&result.ResultStatus, &result.ErrorMsg,
 		)
@@ -348,7 +356,10 @@ select * from runs order by created_at desc, result_id desc nulls first
 			JobID:        result.JobID,
 			JobName:      result.JobName.String,
 			FreqType:     result.FreqType.String,
+			Schedule:     result.Schedule.String,
+			NextRunTime:  result.NextRunTime.Time,
 			JobStatus:    result.JobStatus.String,
+			ScheduleType: result.ScheduleType.String,
 			CreatedAt:    result.CreatedAt.Time,
 			UpdatedAt:    result.UpdatedAt.Time,
 			ResultId:     result.ResultId.Int64,
