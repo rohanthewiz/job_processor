@@ -138,6 +138,26 @@ tr:hover {
     color: var(--danger-color);
 }
 
+.badge-scheduled {
+    background-color: rgba(74, 108, 247, 0.15);
+    color: var(--primary-color);
+}
+
+.badge-complete {
+    background-color: rgba(46, 125, 50, 0.15);
+    color: #2e7d32;
+}
+
+.badge-cancelled {
+    background-color: rgba(117, 117, 117, 0.15);
+    color: #757575;
+}
+
+.badge-stopped {
+    background-color: rgba(158, 79, 50, 0.15);
+    color: #9e4f32;
+}
+
 .timestamp {
     font-family: monospace;
     font-size: 0.75rem;
@@ -174,6 +194,28 @@ tr:hover {
 .btn-primary:active {
     /*background-color: #23527c;*/
     color: #d03f14;
+}
+
+.btn-secondary {
+    color: #6c757d;
+    cursor: pointer;
+}
+.btn-secondary:hover, .btn-secondary:focus {
+    color: #5a6268;
+}
+.btn-secondary:active {
+    color: #545b62;
+}
+
+.btn-danger {
+    color: var(--danger-color);
+    cursor: pointer;
+}
+.btn-danger:hover, .btn-danger:focus {
+    color: #c82333;
+}
+.btn-danger:active {
+    color: #bd2130;
 }
 
 /* Tooltip styles */

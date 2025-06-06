@@ -17,12 +17,14 @@ type Stats struct {
 type JobStatus string
 
 const (
-	StatusCreated  JobStatus = "created"
-	StatusRunning  JobStatus = "running"
-	StatusPaused   JobStatus = "paused"
-	StatusStopped  JobStatus = "stopped"
-	StatusComplete JobStatus = "complete"
-	StatusFailed   JobStatus = "failed"
+	StatusCreated   JobStatus = "created"
+	StatusScheduled JobStatus = "scheduled"
+	StatusRunning   JobStatus = "running"
+	StatusPaused    JobStatus = "paused"
+	StatusStopped   JobStatus = "stopped"
+	StatusComplete  JobStatus = "complete"
+	StatusFailed    JobStatus = "failed"
+	StatusCancelled JobStatus = "cancelled"
 )
 
 // FreqType defines whether a job runs once or periodically
@@ -107,6 +109,8 @@ type JobMgr interface {
 	PauseJob(id string) error
 	// ResumeJob continues execution of a paused job
 	ResumeJob(id string) error
+	// RescheduleJob changes the execution time of a scheduled one-time job
+	RescheduleJob(id string, newSchedule string) error
 	// DeleteJob removes a job from the system
 	DeleteJob(id string) error
 	// ListJobs lists all jobs

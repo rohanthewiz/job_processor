@@ -92,11 +92,19 @@ func renderJobsTableRows(b *element.Builder, jobs []jobpro.JobRun) (x any) {
 					switch strings.ToLower(job.JobStatus) {
 					case "running":
 						statusClass = "badge badge-active"
+					case "scheduled":
+						statusClass = "badge badge-scheduled"
 					case "paused":
 						statusClass = "badge badge-pending"
 					case "pending":
 						statusClass = "badge badge-pending"
-					case "error":
+					case "complete":
+						statusClass = "badge badge-complete"
+					case "cancelled":
+						statusClass = "badge badge-cancelled"
+					case "stopped":
+						statusClass = "badge badge-stopped"
+					case "failed", "error":
 						statusClass = "badge badge-error"
 					}
 
@@ -123,53 +131,16 @@ func renderJobsTableRows(b *element.Builder, jobs []jobpro.JobRun) (x any) {
 					// Controls
 					b.Td().R(
 						b.DivClass("btn-group").R(
-							// Play button
-							b.AClass("btn btn-primary", "data-job-id", job.JobID, "title", "Resume Job", "onClick",
-								`fetch('/jobs/resume/' + this.getAttribute('data-job-id'), {method: 'POST'})
-                .then(response => {
-                    if (response.ok) return response.json();
-                    throw new Error('Network response was not ok');
-                })
-                .then(data => console.log('Job resumed:', data))
-                .catch(error => console.error('Error resuming job:', error))`).R(
-								b.T(`<svg width="20" height="20" viewBox="0 0 20 20" fill="none"
-                xmlns="http://www.w3.org/2000/svg"
-                style="vertical-align: middle;">
-                <polygon points="5,4 15,10 5,16" fill="currentColor"/>
-                </svg>`),
-							),
-							// Pause button
-							b.AClass("btn btn-primary", "data-job-id", job.JobID, "title", "Pause Job", "onClick",
-								`fetch('/jobs/pause/' + this.getAttribute('data-job-id'), {method: 'POST'})
-                .then(response => {
-                    if (response.ok) return response.json();
-                    throw new Error('Network response was not ok');
-                })
-                .then(data => console.log('Job paused:', data))
-                .catch(error => console.error('Error pausing job:', error))`).R(
-								b.T(`<svg width="20" height="20" viewBox="0 0 20 20" fill="none"
-                xmlns="http://www.w3.org/2000/svg"
-                style="vertical-align: middle;">
-                <rect x="4" y="4" width="4" height="12" rx="1" fill="currentColor"/>
-                <rect x="12" y="4" width="4" height="12" rx="1" fill="currentColor"/>
-                </svg>`),
-							),
-							// Start Now button
-							b.AClass("btn btn-primary", "data-job-id", job.JobID, "title", "Start Now", "onClick",
-								`fetch('/jobs/run-now/' + this.getAttribute('data-job-id'), {method: 'POST'})
-                .then(response => {
-                    if (response.ok) return response.json();
-                    throw new Error('Network response was not ok');
-                })
-                .then(data => console.log('Job triggered:', data))
-                .catch(error => console.error('Error triggering job:', error))`).R(
-								b.T(`<svg width="20" height="20" viewBox="0 0 20 20" fill="none"
-				xmlns="http://www.w3.org/2000/svg"
-				style="vertical-align: middle;">
-				<polygon points="3,4 11,10 3,16" fill="currentColor"/>
-				<rect x="13" y="4" width="3" height="12" fill="currentColor"/>
-				</svg>`),
-							),
+							b.Wrap(func() {
+								// Render controls based on job type and status
+								if strings.ToLower(job.ScheduleType) == "periodic" {
+									// Periodic job controls with job status
+									renderPeriodicJobControls(b, job.JobID, strings.ToLower(job.JobStatus))
+								} else {
+									// One-time job controls based on status
+									renderOneTimeJobControls(b, job.JobID, strings.ToLower(job.JobStatus))
+								}
+							}),
 						),
 					)
 
@@ -185,4 +156,116 @@ func renderJobsTableRows(b *element.Builder, jobs []jobpro.JobRun) (x any) {
 		)
 	})
 	return
+}
+
+// renderPeriodicJobControls renders control buttons for periodic jobs
+func renderPeriodicJobControls(b *element.Builder, jobID string, status string) {
+	// Toggle play/pause button based on status
+	if status == "paused" {
+		// Play/Resume button
+		b.AClass("btn btn-primary", "data-job-id", jobID, "title", "Resume Job", "onClick",
+			`fetch('/jobs/resume/' + this.getAttribute('data-job-id'), {method: 'POST'}).then(response => { if (response.ok) return response.json(); throw new Error('Network response was not ok'); }).then(data => console.log('Job resumed:', data)).catch(error => console.error('Error resuming job:', error))`).R(
+			b.T(`<svg width="20" height="20" viewBox="0 0 20 20" fill="none"
+			xmlns="http://www.w3.org/2000/svg"
+			style="vertical-align: middle;">
+			<polygon points="5,4 15,10 5,16" fill="currentColor"/>
+			</svg>`),
+		)
+	} else {
+		// Pause button (for running/scheduled states)
+		b.AClass("btn btn-primary", "data-job-id", jobID, "title", "Pause Job", "onClick",
+			`fetch('/jobs/pause/' + this.getAttribute('data-job-id'), {method: 'POST'}).then(response => { if (response.ok) return response.json(); throw new Error('Network response was not ok'); }).then(data => console.log('Job paused:', data)).catch(error => console.error('Error pausing job:', error))`).R(
+			b.T(`<svg width="20" height="20" viewBox="0 0 20 20" fill="none"
+			xmlns="http://www.w3.org/2000/svg"
+			style="vertical-align: middle;">
+			<rect x="4" y="4" width="4" height="12" rx="1" fill="currentColor"/>
+			<rect x="12" y="4" width="4" height="12" rx="1" fill="currentColor"/>
+			</svg>`),
+		)
+	}
+
+	// Run Now button - always available
+	b.AClass("btn btn-primary", "data-job-id", jobID, "title", "Run Now", "onClick",
+		`fetch('/jobs/run-now/' + this.getAttribute('data-job-id'), {method: 'POST'}).then(response => { if (response.ok) return response.json(); throw new Error('Network response was not ok'); }).then(data => console.log('Job triggered:', data)).catch(error => console.error('Error triggering job:', error))`).R(
+		b.T(`<svg width="20" height="20" viewBox="0 0 20 20" fill="none"
+		xmlns="http://www.w3.org/2000/svg"
+		style="vertical-align: middle;">
+		<polygon points="3,4 11,10 3,16" fill="currentColor"/>
+		<rect x="13" y="4" width="3" height="12" fill="currentColor"/>
+		</svg>`),
+	)
+}
+
+// renderOneTimeJobControls renders control buttons for one-time jobs based on their status
+func renderOneTimeJobControls(b *element.Builder, jobID string, status string) {
+	switch status {
+	case "created", "cancelled":
+		// Start button
+		b.AClass("btn btn-primary", "data-job-id", jobID, "title", "Start Job", "onClick",
+			`fetch('/jobs/start/' + this.getAttribute('data-job-id'), {method: 'POST'}).then(response => { if (response.ok) return response.json(); throw new Error('Network response was not ok'); }).then(data => console.log('Job started:', data)).catch(error => console.error('Error starting job:', error))`).R(
+			b.T(`<svg width="20" height="20" viewBox="0 0 20 20" fill="none"
+			xmlns="http://www.w3.org/2000/svg"
+			style="vertical-align: middle;">
+			<polygon points="5,4 15,10 5,16" fill="currentColor"/>
+			</svg>`),
+		)
+
+	case "scheduled":
+		// Run Now button
+		b.AClass("btn btn-primary", "data-job-id", jobID, "title", "Run Now", "onClick",
+			`fetch('/jobs/run-now/' + this.getAttribute('data-job-id'), {method: 'POST'}).then(response => { if (response.ok) return response.json(); throw new Error('Network response was not ok'); }).then(data => console.log('Job triggered:', data)).catch(error => console.error('Error triggering job:', error))`).R(
+			b.T(`<svg width="20" height="20" viewBox="0 0 20 20" fill="none"
+			xmlns="http://www.w3.org/2000/svg"
+			style="vertical-align: middle;">
+			<polygon points="3,4 11,10 3,16" fill="currentColor"/>
+			<rect x="13" y="4" width="3" height="12" fill="currentColor"/>
+			</svg>`),
+		)
+
+		// Reschedule button
+		b.AClass("btn btn-secondary", "data-job-id", jobID, "title", "Reschedule Job", "onClick",
+			`const newSchedule = prompt('Enter new schedule (e.g., &quot;in 5m&quot;, &quot;2024-12-25 15:00:00 PST&quot;):'); if (newSchedule) { fetch('/jobs/reschedule/' + this.getAttribute('data-job-id'), { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({schedule: newSchedule}) }).then(response => { if (response.ok) return response.json(); throw new Error('Network response was not ok'); }).then(data => console.log('Job rescheduled:', data)).catch(error => console.error('Error rescheduling job:', error)); }`).R(
+			b.T(`<svg width="20" height="20" viewBox="0 0 20 20" fill="none"
+			xmlns="http://www.w3.org/2000/svg"
+			style="vertical-align: middle;">
+			<path d="M10 5V10L13 13" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+			<path d="M17 10C17 13.866 13.866 17 10 17C6.134 17 3 13.866 3 10C3 6.134 6.134 3 10 3C11.5 3 12.9 3.4 14.1 4.1" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+			</svg>`),
+		)
+
+		// Cancel button
+		b.AClass("btn btn-danger", "data-job-id", jobID, "title", "Cancel Job", "onClick",
+			`if (confirm('Are you sure you want to cancel this scheduled job?')) { fetch('/jobs/stop/' + this.getAttribute('data-job-id'), {method: 'POST'}).then(response => { if (response.ok) return response.json(); throw new Error('Network response was not ok'); }).then(data => console.log('Job cancelled:', data)).catch(error => console.error('Error cancelling job:', error)); }`).R(
+			b.T(`<svg width="20" height="20" viewBox="0 0 20 20" fill="none"
+			xmlns="http://www.w3.org/2000/svg"
+			style="vertical-align: middle;">
+			<path d="M6 6L14 14M14 6L6 14" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+			</svg>`),
+		)
+
+	case "running":
+		// Stop button
+		b.AClass("btn btn-danger", "data-job-id", jobID, "title", "Stop Job", "onClick",
+			`if (confirm('Are you sure you want to stop this running job?')) { fetch('/jobs/stop/' + this.getAttribute('data-job-id'), {method: 'POST'}).then(response => { if (response.ok) return response.json(); throw new Error('Network response was not ok'); }).then(data => console.log('Job stopped:', data)).catch(error => console.error('Error stopping job:', error)); }`).R(
+			b.T(`<svg width="20" height="20" viewBox="0 0 20 20" fill="none"
+			xmlns="http://www.w3.org/2000/svg"
+			style="vertical-align: middle;">
+			<rect x="4" y="4" width="12" height="12" rx="1" fill="currentColor"/>
+			</svg>`),
+		)
+
+	case "complete", "failed", "stopped":
+		// Retry button
+		b.AClass("btn btn-primary", "data-job-id", jobID, "title", "Retry Job", "onClick",
+			`fetch('/jobs/run-now/' + this.getAttribute('data-job-id'), {method: 'POST'}).then(response => { if (response.ok) return response.json(); throw new Error('Network response was not ok'); }).then(data => console.log('Job retried:', data)).catch(error => console.error('Error retrying job:', error))`).R(
+			b.T(`<svg width="20" height="20" viewBox="0 0 20 20" fill="none"
+			xmlns="http://www.w3.org/2000/svg"
+			style="vertical-align: middle;">
+			<path d="M4 10C4 6.686 6.686 4 10 4C12.2 4 14.1 5.2 15.1 7" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+			<path d="M16 10C16 13.314 13.314 16 10 16C7.8 16 5.9 14.8 4.9 13" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+			<polyline points="15 3 15 7 11 7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+			<polyline points="5 17 5 13 9 13" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+			</svg>`),
+		)
+	}
 }
