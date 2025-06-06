@@ -16,16 +16,17 @@ import (
 
 // DefaultJobManager implements the JobMgr interface
 type DefaultJobManager struct {
-	store       JobStore
-	cron        *cron.Cron
-	jobs        map[string]Job                // keep track of active jobs
-	cronEntries map[string]cron.EntryID       // keep track of jobs scheduled with cron
-	runningJobs map[string]context.CancelFunc // keep track of running jobs and a cancel function to stop each
-	mu          sync.RWMutex
-	wg          sync.WaitGroup
-	results     chan JobResult
-	jobsUpdated chan any // Channel to signal that there has been at least one job update
-	shutdown    bool
+	store         JobStore
+	cron          *cron.Cron
+	jobs          map[string]Job                // keep track of active jobs
+	cronEntries   map[string]cron.EntryID       // keep track of jobs scheduled with cron
+	runningJobs   map[string]context.CancelFunc // keep track of running jobs and a cancel function to stop each
+	scheduledJobs map[string]*time.Timer        // keep track of scheduled one-time jobs for cancellation
+	mu            sync.RWMutex
+	wg            sync.WaitGroup
+	results       chan JobResult
+	jobsUpdated   chan any // Channel to signal that there has been at least one job update
+	shutdown      bool
 }
 
 // NewJobManager creates a new job manager with the provided store
@@ -34,13 +35,14 @@ func NewJobManager(store JobStore) *DefaultJobManager {
 	cronScheduler := cron.New(cron.WithParser(cronParser), cron.WithChain())
 
 	mgr := &DefaultJobManager{
-		store:       store,
-		cron:        cronScheduler,
-		jobs:        make(map[string]Job),
-		cronEntries: make(map[string]cron.EntryID),
-		runningJobs: make(map[string]context.CancelFunc),
-		results:     make(chan JobResult, 256), // Buffer for job results - perhaps make this configurable
-		jobsUpdated: make(chan any, 1),
+		store:         store,
+		cron:          cronScheduler,
+		jobs:          make(map[string]Job),
+		cronEntries:   make(map[string]cron.EntryID),
+		runningJobs:   make(map[string]context.CancelFunc),
+		scheduledJobs: make(map[string]*time.Timer),
+		results:       make(chan JobResult, 256), // Buffer for job results - perhaps make this configurable
+		jobsUpdated:   make(chan any, 1),
 	}
 
 	// Start the results processor
@@ -266,10 +268,28 @@ func (m *DefaultJobManager) StartJob(id string) error {
 			m.cronEntries[id] = entryID
 		}
 	} else { // For one-time jobs, execute it on schedule
+		// Update status to scheduled for one-time jobs that haven't run yet
+		if jobDef.NextRunTime.After(time.Now()) {
+			if err := m.store.UpdateJobStatus(id, StatusScheduled); err != nil {
+				return serr.Wrap(err, "failed to update job status to scheduled")
+			}
+		}
+
+		// Schedule the job in a goroutine and store the timer
 		go func() {
-			_ = RunAt(jobDef.NextRunTime, func() { // TODO - we can use the returned timer to cancel
+			timer := RunAt(jobDef.NextRunTime, func() {
+				// Remove the timer reference when the job starts
+				m.mu.Lock()
+				delete(m.scheduledJobs, id)
+				m.mu.Unlock()
+
 				m.executeJob(id)
 			})
+
+			// Store the timer reference
+			m.mu.Lock()
+			m.scheduledJobs[id] = timer
+			m.mu.Unlock()
 		}()
 	}
 
@@ -337,33 +357,58 @@ func (m *DefaultJobManager) StopJob(id string) error {
 	defer m.mu.Unlock()
 
 	// Check if job exists
-	if _, exists := m.jobs[id]; !exists {
+	job, exists := m.jobs[id]
+	if !exists {
 		return fmt.Errorf("job %s not found", id)
 	}
+
+	// Get current job status to determine the appropriate action
+	jobDef, err := m.store.GetJob(id)
+	if err != nil {
+		return fmt.Errorf("failed to get job status: %w", err)
+	}
+
+	var finalStatus JobStatus
 
 	// If it's a periodic job, remove from cron
 	if entryID, exists := m.cronEntries[id]; exists {
 		m.cron.Remove(entryID)
 		delete(m.cronEntries, id)
+		finalStatus = StatusStopped
 	}
 
 	// If it's running, cancel its context
 	if cancel, running := m.runningJobs[id]; running {
 		cancel() // This signals the job to stop
 		delete(m.runningJobs, id)
+		finalStatus = StatusStopped
 		// Note: The job will complete and call wg.Done() when it processes the cancellation
+	} else if job.Type() == OneTime {
+		// For one-time jobs that are scheduled but not running
+		if timer, scheduled := m.scheduledJobs[id]; scheduled {
+			// Cancel the scheduled execution
+			timer.Stop()
+			delete(m.scheduledJobs, id)
+			finalStatus = StatusCancelled
+		} else if jobDef.Status == StatusScheduled {
+			// Job was scheduled but timer already fired or was removed
+			finalStatus = StatusCancelled
+		} else {
+			finalStatus = StatusStopped
+		}
+	} else {
+		finalStatus = StatusStopped
 	}
 
 	// Update job status
-	if err := m.store.UpdateJobStatus(id, StatusStopped); err != nil {
+	if err := m.store.UpdateJobStatus(id, finalStatus); err != nil {
 		return fmt.Errorf("failed to update job status: %w", err)
 	}
 
 	// Send notification that job has stopped
-	// Let the system know that jobs have been updated
 	select {
 	case m.jobsUpdated <- "updated":
-		fmt.Println("Job update (stopped) notification sent")
+		fmt.Println("Job update (stopped/cancelled) notification sent")
 	default: // Non-blocking send to avoid blocking if no one is listening
 		// If the channel is full, we don't want to block
 	}
@@ -462,6 +507,86 @@ func (m *DefaultJobManager) ResumeJob(id string) error {
 	return nil
 }
 
+// RescheduleJob changes the execution time of a scheduled one-time job
+func (m *DefaultJobManager) RescheduleJob(id string, newSchedule string) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	// Check if job exists
+	job, exists := m.jobs[id]
+	if !exists {
+		return fmt.Errorf("job %s not found", id)
+	}
+
+	// Only one-time jobs can be rescheduled
+	if job.Type() != OneTime {
+		return fmt.Errorf("only one-time jobs can be rescheduled")
+	}
+
+	// Get current job status
+	jobDef, err := m.store.GetJob(id)
+	if err != nil {
+		return fmt.Errorf("failed to get job details: %w", err)
+	}
+
+	// Can only reschedule jobs that are scheduled or created
+	if jobDef.Status != StatusScheduled && jobDef.Status != StatusCreated {
+		return fmt.Errorf("job %s cannot be rescheduled in status %s", id, jobDef.Status)
+	}
+
+	// Parse the new schedule
+	newTime, err := util.ParseSchedule(newSchedule)
+	if err != nil {
+		return fmt.Errorf("invalid time format: %w", err)
+	}
+
+	// Cancel existing timer if exists
+	if timer, exists := m.scheduledJobs[id]; exists {
+		timer.Stop()
+		delete(m.scheduledJobs, id)
+	}
+
+	// Update the job in the store
+	jobDef.Schedule = newSchedule
+	jobDef.NextRunTime = newTime
+	jobDef.UpdatedAt = time.Now().UTC()
+	if err := m.store.SaveJob(jobDef); err != nil {
+		return fmt.Errorf("failed to update job: %w", err)
+	}
+
+	// Update next run time
+	if err := m.store.UpdateNextRunTime(id, newTime); err != nil {
+		return fmt.Errorf("failed to update next run time: %w", err)
+	}
+
+	// Reschedule the job with new time
+	go func() {
+		timer := RunAt(newTime, func() {
+			// Remove the timer reference when the job starts
+			m.mu.Lock()
+			delete(m.scheduledJobs, id)
+			m.mu.Unlock()
+
+			m.executeJob(id)
+		})
+
+		// Store the new timer reference
+		m.mu.Lock()
+		m.scheduledJobs[id] = timer
+		m.mu.Unlock()
+	}()
+
+	// Send notification
+	select {
+	case m.jobsUpdated <- "updated":
+		fmt.Println("Job update (rescheduled) notification sent")
+	default:
+		// If the channel is full, we don't want to block
+	}
+
+	return nil
+}
+
 // TriggerJobNow immediately executes a job regardless of its schedule
 func (m *DefaultJobManager) TriggerJobNow(id string) error {
 	m.mu.Lock()
@@ -515,6 +640,12 @@ func (m *DefaultJobManager) DeleteJob(id string) error {
 	if cancel, running := m.runningJobs[id]; running {
 		cancel()
 		delete(m.runningJobs, id)
+	}
+
+	// If it's a scheduled one-time job, cancel the timer
+	if timer, scheduled := m.scheduledJobs[id]; scheduled {
+		timer.Stop()
+		delete(m.scheduledJobs, id)
 	}
 
 	// Remove from maps

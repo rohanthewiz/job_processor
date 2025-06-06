@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
 	"job_processor/jobpro"
 	"job_processor/pubsub"
@@ -35,6 +36,7 @@ func main() {
 		Name:       "Periodic Job 1",
 		IsPeriodic: true,
 		Schedule:   "*/15 * * * * *",
+		AutoStart:  true,
 		JobFunction: func() error {
 			fmt.Println("Periodic job doing work")
 			return nil
@@ -47,8 +49,22 @@ func main() {
 		Name:       "Onetime Job 1",
 		IsPeriodic: false,
 		Schedule:   "in 30s", // Can also use: "+30s", "30s", "2024-01-15 14:30:00 PST", etc. See README
+		AutoStart:  true,     // Auto-start this job
 		JobFunction: func() error {
 			fmt.Println("One time job doing work")
+			return nil
+		},
+	})
+
+	// Register another Onetime job that doesn't auto-start for testing
+	jobpro.RegisterJob(jobpro.JobConfig{
+		ID:         "onetimeJob2",
+		Name:       "Manual Start Job",
+		IsPeriodic: false,
+		Schedule:   "in 2m",
+		AutoStart:  false, // This job won't start automatically
+		JobFunction: func() error {
+			fmt.Println("Manual start job doing work")
 			return nil
 		},
 	})
@@ -159,6 +175,80 @@ func main() {
 			return ctx.WriteJSON(map[string]string{
 				"jobID":  jobID,
 				"status": "triggered",
+			})
+		})
+
+		s.Post("/jobs/start/:job-id", func(ctx rweb.Context) error {
+			jobID := ctx.Request().Param("job-id")
+
+			if err := jobMgr.StartJob(jobID); err != nil {
+				logger.LogErr(err, "Failed to start job", "jobID", jobID)
+				ctx.Status(500)
+				return ctx.WriteJSON(map[string]string{
+					"error": err.Error(),
+				})
+			}
+
+			return ctx.WriteJSON(map[string]string{
+				"jobID":  jobID,
+				"status": "started",
+			})
+		})
+
+		s.Post("/jobs/stop/:job-id", func(ctx rweb.Context) error {
+			jobID := ctx.Request().Param("job-id")
+
+			if err := jobMgr.StopJob(jobID); err != nil {
+				logger.LogErr(err, "Failed to stop job", "jobID", jobID)
+				ctx.Status(500)
+				return ctx.WriteJSON(map[string]string{
+					"error": err.Error(),
+				})
+			}
+
+			return ctx.WriteJSON(map[string]string{
+				"jobID":  jobID,
+				"status": "stopped",
+			})
+		})
+
+		s.Post("/jobs/reschedule/:job-id", func(ctx rweb.Context) error {
+			jobID := ctx.Request().Param("job-id")
+
+			// Parse request body to get new schedule
+			type rescheduleRequest struct {
+				Schedule string `json:"schedule"`
+			}
+			var req rescheduleRequest
+
+			// Read body and decode JSON
+			bodyBytes := ctx.Request().Body()
+			if err := json.Unmarshal(bodyBytes, &req); err != nil {
+				ctx.Status(400)
+				return ctx.WriteJSON(map[string]string{
+					"error": "Invalid request: " + err.Error(),
+				})
+			}
+
+			if req.Schedule == "" {
+				ctx.Status(400)
+				return ctx.WriteJSON(map[string]string{
+					"error": "Schedule is required",
+				})
+			}
+
+			if err := jobMgr.RescheduleJob(jobID, req.Schedule); err != nil {
+				logger.LogErr(err, "Failed to reschedule job", "jobID", jobID)
+				ctx.Status(500)
+				return ctx.WriteJSON(map[string]string{
+					"error": err.Error(),
+				})
+			}
+
+			return ctx.WriteJSON(map[string]string{
+				"jobID":    jobID,
+				"status":   "rescheduled",
+				"schedule": req.Schedule,
 			})
 		})
 

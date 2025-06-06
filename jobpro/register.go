@@ -15,7 +15,8 @@ type JobConfig struct {
 	Schedule    string
 	Priority    int // Priority is not yet supported
 	MaxRunTime  int
-	RetryCount  int // RetryCount is not yet supported
+	RetryCount  int  // RetryCount is not yet supported
+	AutoStart   bool // Whether to automatically start the job after creation (default: true)
 	JobFunction func() error
 }
 
@@ -82,8 +83,12 @@ func setupJob(mgr JobMgr, jc JobConfig) error {
 	}
 	log.Printf("Load job: %v\n", jc)
 
-	if err := mgr.StartJob(jobID); err != nil {
-		logger.LogErr(serr.Wrap(err, "Failed to start job"))
+	// Start job automatically if AutoStart is true (default behavior when not set)
+	if jc.AutoStart || (!jc.IsPeriodic && jc.Schedule == "") {
+		// Always start periodic jobs and immediate one-time jobs
+		if err := mgr.StartJob(jobID); err != nil {
+			logger.LogErr(serr.Wrap(err, "Failed to start job"))
+		}
 	}
 
 	return nil
