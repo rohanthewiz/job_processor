@@ -30,6 +30,8 @@ func renderJobsTable(jobs []jobpro.JobRun) string {
 			b.T(`<script src="https://unpkg.com/htmx.org@2.0.4"></script>`),
 			// Add HTMX SSE extension
 			b.T(`<script src="https://unpkg.com/htmx-ext-sse@2.2.2"></script>`),
+			// Add Chart.js for mini charts
+			b.T(`<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>`),
 		),
 		b.Body().R(
 			// Add SSE source connection to the body
@@ -63,9 +65,82 @@ func renderJobsTable(jobs []jobpro.JobRun) string {
 
 // renderJobsTableRows renders just the table rows - for HTMX updates
 func renderJobsTableRows(b *element.Builder, jobs []jobpro.JobRun) (x any) {
+	// Add JavaScript for expand/collapse functionality
+	b.Script().T(`
+	function toggleJobResults(jobId) {
+		const rows = document.querySelectorAll('.job-result-row[data-job-id="' + jobId + '"]');
+		const toggleBtn = document.querySelector('.toggle-btn[data-job-id="' + jobId + '"]');
+		const isExpanded = toggleBtn.classList.contains('expanded');
+		
+		rows.forEach(row => {
+			row.style.display = isExpanded ? 'none' : '';
+		});
+		
+		toggleBtn.classList.toggle('expanded');
+		toggleBtn.textContent = isExpanded ? '▶' : '▼';
+		
+		// Store state in localStorage
+		const expandedJobs = JSON.parse(localStorage.getItem('expandedJobs') || '{}');
+		expandedJobs[jobId] = !isExpanded;
+		localStorage.setItem('expandedJobs', JSON.stringify(expandedJobs));
+	}
+	
+	// Restore expanded state after HTMX update
+	document.addEventListener('htmx:afterSwap', function() {
+		const expandedJobs = JSON.parse(localStorage.getItem('expandedJobs') || '{}');
+		Object.entries(expandedJobs).forEach(([jobId, isExpanded]) => {
+			if (isExpanded) {
+				const toggleBtn = document.querySelector('.toggle-btn[data-job-id="' + jobId + '"]');
+				if (toggleBtn && !toggleBtn.classList.contains('expanded')) {
+					toggleJobResults(jobId);
+				}
+			}
+		});
+		
+		// Ensure all flex containers are properly styled
+		const allFlexContainers = document.querySelectorAll('td > div[style*="flex"]');
+		allFlexContainers.forEach(container => {
+			// Force re-apply flex styles in case they got lost
+			container.style.display = 'flex';
+			container.style.alignItems = 'center';
+			container.style.gap = '0.5rem';
+		});
+	});
+	`)
+
 	element.ForEach(jobs, func(job jobpro.JobRun) {
-		b.Tr().R(
-			b.Td().T(job.JobName),
+		// Determine if this is a main job row or a result row
+		isMainRow := job.ResultId == 0
+		rowClass := ""
+		if isMainRow {
+			rowClass = "job-main-row"
+		} else {
+			rowClass = "job-result-row"
+		}
+
+		b.Tr("class", rowClass, "data-job-id", job.JobID, "style", func() string {
+			if !isMainRow {
+				// Check if this job should be hidden initially
+				return "display: none;"
+			}
+			return ""
+		}()).R(
+			b.Td().R(
+				b.Wrap(func() {
+					if isMainRow {
+						// For main rows, use flex container with toggle button
+						b.Div("style", "display: flex; align-items: center; gap: 0.5rem;").R(
+							b.Span("class", "toggle-btn", "data-job-id", job.JobID,
+								"onclick", "toggleJobResults('"+job.JobID+"')",
+								"style", "cursor: pointer; font-size: 0.8rem; user-select: none; flex-shrink: 0;").T("▶"),
+							b.Span("style", "flex-grow: 1;").T(job.JobName),
+						)
+					} else {
+						// For result rows, just show the name without toggle
+						b.T(job.JobName)
+					}
+				}),
+			),
 			b.Td().T(job.JobID),
 			b.Wrap(func() {
 				// Some Job level attributes
@@ -123,11 +198,170 @@ func renderJobsTableRows(b *element.Builder, jobs []jobpro.JobRun) (x any) {
 
 				// Some Run level attributes
 				if job.ResultId == 0 { // no need to display runlevel things for the main job
-					b.Td().T("")
-					b.Td().T("")
-					b.Td().T("")
-					b.Td().T("")
-					b.Td().T("")
+					// For periodic jobs, show a mini chart in the blank cells area
+					if strings.ToLower(job.ScheduleType) == "periodic" {
+						// Merge the 5 blank cells (RunID to Error) into one for the chart
+						b.Td("colspan", "5").R(
+							b.DivClass("chart-container", "style", "height: 60px; width: 100%; position: relative;").R(
+								b.Canvas("id", "chart-"+job.JobID, "style", "max-height: 60px;").T(""),
+								// Script to fetch and render chart data
+								b.Script().T(`
+								(function() {
+									const chartId = 'chart-`+job.JobID+`';
+									const canvas = document.getElementById(chartId);
+									if (!canvas) return;
+
+									// Fetch job history
+									fetch('/jobs/history/`+job.JobID+`')
+										.then(response => response.json())
+										.then(data => {
+											if (!data || data.length === 0) {
+												canvas.style.display = 'none';
+												return;
+											}
+											
+											// Prepare chart data
+											const labels = data.slice().reverse().map((_, idx) => idx + 1);
+											const durations = data.slice().reverse().map(d => d.Duration / 1000000); // Convert to ms
+											const colors = data.slice().reverse().map(d => 
+												d.Status === 'complete' ? '#4ade80' : '#ef4444'
+											);
+											
+											// Create chart
+											new Chart(canvas, {
+												type: 'line',
+												data: {
+													labels: labels,
+													datasets: [{
+														data: durations,
+														fill: true,
+														backgroundColor: 'rgba(74, 222, 128, 0.2)',
+														borderColor: '#4ade80',
+														borderWidth: 2,
+														pointBackgroundColor: colors,
+														pointBorderColor: colors,
+														pointRadius: 4,
+														pointHoverRadius: 6,
+														tension: 0.3
+													}]
+												},
+												options: {
+													responsive: true,
+													maintainAspectRatio: false,
+													plugins: {
+														legend: { display: false },
+														tooltip: {
+															callbacks: {
+																label: function(context) {
+																	return context.parsed.y.toFixed(1) + ' ms';
+																}
+															}
+														}
+													},
+													scales: {
+														x: { 
+															display: false,
+															grid: { display: false }
+														},
+														y: { 
+															display: false,
+															grid: { display: false },
+															beginAtZero: true
+														}
+													}
+												}
+											});
+										})
+										.catch(error => {
+											console.error('Error fetching job history:', error);
+											canvas.style.display = 'none';
+										});
+								})();
+								`),
+							),
+						)
+					} else {
+						// For one-time jobs, show a summary in the blank cells area
+						b.Td("colspan", "5").R(
+							b.DivClass("summary-container", "id", "summary-"+job.JobID).R(
+								// Script to fetch and render summary data
+								b.Script().T(`
+								(function() {
+									const summaryId = 'summary-` + job.JobID + `';
+									const container = document.getElementById(summaryId);
+									if (!container) return;
+									
+									// Fetch job history
+									fetch('/jobs/history/` + job.JobID + `')
+										.then(response => response.json())
+										.then(data => {
+											if (!data || data.length === 0) {
+												container.innerHTML = '<div class="summary-empty">No runs yet</div>';
+												return;
+											}
+											
+											// Calculate statistics
+											const totalRuns = data.length;
+											const successfulRuns = data.filter(d => d.Status === 'complete').length;
+											const successRate = Math.round((successfulRuns / totalRuns) * 100);
+											const durations = data.map(d => d.Duration / 1000000); // Convert to ms
+											const avgDuration = durations.reduce((a, b) => a + b, 0) / durations.length;
+											
+											// Get last run info
+											const lastRun = data[0]; // Most recent
+											const lastRunTime = new Date(lastRun.StartTime);
+											const timeSince = getTimeSince(lastRunTime);
+											const lastRunStatus = lastRun.Status === 'complete' ? '✓' : '✗';
+											const lastRunClass = lastRun.Status === 'complete' ? 'success' : 'error';
+											
+											// Create summary HTML
+											const summaryHTML = 
+												'<div class="summary-stats" style="display: flex; flex-direction: row; gap: 1.5rem; width: 100%;">' +
+												'<div class="stat" style="display: flex; align-items: center; gap: 0.4rem;">' +
+												'<span class="stat-icon">📊</span>' +
+												'<span class="stat-value">' + totalRuns + '</span>' +
+												'<span class="stat-label">' + (totalRuns === 1 ? 'run' : 'runs') + '</span>' +
+												'</div>' +
+												'<div class="stat" style="display: flex; align-items: center; gap: 0.4rem;">' +
+												'<span class="stat-icon ' + (successRate >= 80 ? 'success' : successRate >= 50 ? 'warning' : 'error') + '">✓</span>' +
+												'<span class="stat-value">' + successRate + '%</span>' +
+												'<span class="stat-label">success</span>' +
+												'</div>' +
+												'<div class="stat" style="display: flex; align-items: center; gap: 0.4rem;">' +
+												'<span class="stat-icon">⏱</span>' +
+												'<span class="stat-value">' + avgDuration.toFixed(1) + 'ms</span>' +
+												'<span class="stat-label">avg</span>' +
+												'</div>' +
+												'<div class="stat" style="display: flex; align-items: center; gap: 0.4rem;">' +
+												'<span class="stat-icon ' + lastRunClass + '">' + lastRunStatus + '</span>' +
+												'<span class="stat-value">' + timeSince + '</span>' +
+												'<span class="stat-label">ago</span>' +
+												'</div>' +
+												'</div>';
+											
+											container.innerHTML = summaryHTML;
+										})
+										.catch(error => {
+											console.error('Error fetching job history:', error);
+											container.innerHTML = '<div class="summary-error">Failed to load stats</div>';
+										});
+									
+									// Helper function to calculate time since
+									function getTimeSince(date) {
+										const seconds = Math.floor((new Date() - date) / 1000);
+										if (seconds < 60) return seconds + 's';
+										const minutes = Math.floor(seconds / 60);
+										if (minutes < 60) return minutes + 'm';
+										const hours = Math.floor(minutes / 60);
+										if (hours < 24) return hours + 'h';
+										const days = Math.floor(hours / 24);
+										return days + 'd';
+									}
+								})();
+								`),
+							),
+						)
+					}
 					// Controls
 					b.Td().R(
 						b.DivClass("btn-group").R(

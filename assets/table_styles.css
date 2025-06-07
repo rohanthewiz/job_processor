@@ -252,3 +252,154 @@ tr:hover {
     border-top-color: #2E454B;
     z-index: 10;
 }
+
+/* Chart container styles */
+.chart-container {
+    padding: 0.5rem;
+    background-color: rgba(255, 255, 255, 0.3);
+    border-radius: 4px;
+}
+
+.chart-container canvas {
+    width: 100% !important;
+    height: 60px !important;
+}
+
+/* Summary container styles for one-time jobs */
+.summary-container {
+    padding: 0.5rem 1rem;
+    background-color: rgba(255, 255, 255, 0.3);
+    border-radius: 4px;
+    height: 60px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    box-sizing: border-box;
+}
+
+.summary-stats {
+    display: flex;
+    flex-direction: row;
+    gap: 1.5rem;
+    align-items: center;
+    width: 100%;
+    justify-content: space-around;
+    flex-wrap: nowrap;
+}
+
+.stat {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    gap: 0.4rem;
+    font-size: 0.85rem;
+    white-space: nowrap;
+    flex-shrink: 0;
+}
+
+.stat-icon {
+    font-size: 1rem;
+    opacity: 0.8;
+}
+
+.stat-icon.success {
+    color: #4ade80;
+}
+
+.stat-icon.warning {
+    color: #f59e0b;
+}
+
+.stat-icon.error {
+    color: #ef4444;
+}
+
+.stat-value {
+    font-weight: 600;
+    color: #2E454B;
+    font-size: 0.9rem;
+}
+
+.stat-label {
+    font-size: 0.75rem;
+    color: var(--secondary-color);
+    opacity: 0.8;
+}
+
+.summary-empty {
+    font-size: 0.85rem;
+    color: var(--secondary-color);
+    font-style: italic;
+}
+
+.summary-error {
+    font-size: 0.85rem;
+    color: var(--danger-color);
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+    .summary-stats {
+        gap: 0.8rem;
+        font-size: 0.8rem;
+    }
+    
+    .stat {
+        gap: 0.2rem;
+    }
+    
+    .stat-icon {
+        font-size: 0.9rem;
+    }
+    
+    .stat-value {
+        font-size: 0.8rem;
+    }
+}
+
+/* Toggle button styles */
+.toggle-btn {
+    display: inline-block;
+    width: 1.2rem;
+    text-align: center;
+    transition: opacity 0.2s ease;
+    user-select: none;
+}
+
+.toggle-btn.expanded {
+    /* No rotation needed, we swap the characters in JS */
+}
+
+/* Job row styles */
+.job-main-row {
+    background-color: rgba(255, 255, 255, 0.5);
+    font-weight: 500;
+}
+
+.job-main-row:hover {
+    background-color: rgba(220, 230, 230, 0.8);
+}
+
+.job-result-row {
+    background-color: rgba(245, 245, 245, 0.3);
+    font-size: 0.85rem;
+}
+
+.job-result-row td:first-child {
+    padding-left: 2.5rem;
+}
+
+/* Smooth transition for row visibility */
+.job-result-row {
+    transition: opacity 0.2s ease;
+}
+
+/* Visual separator between job groups */
+.job-main-row td {
+    border-top: 2px solid var(--border-color);
+}
+
+.job-main-row:first-child td {
+    border-top: none;
+}
