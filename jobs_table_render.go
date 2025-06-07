@@ -208,12 +208,86 @@ func renderJobsTableRows(b *element.Builder, jobs []jobpro.JobRun) (x any) {
 							),
 						)
 					} else {
-						// For one-time jobs, keep the blank cells
-						b.Td().T("")
-						b.Td().T("")
-						b.Td().T("")
-						b.Td().T("")
-						b.Td().T("")
+						// For one-time jobs, show a summary in the blank cells area
+						b.Td("colspan", "5").R(
+							b.DivClass("summary-container", "id", "summary-"+job.JobID).R(
+								// Script to fetch and render summary data
+								b.Script().T(`
+								(function() {
+									const summaryId = 'summary-` + job.JobID + `';
+									const container = document.getElementById(summaryId);
+									if (!container) return;
+									
+									// Fetch job history
+									fetch('/jobs/history/` + job.JobID + `')
+										.then(response => response.json())
+										.then(data => {
+											if (!data || data.length === 0) {
+												container.innerHTML = '<div class="summary-empty">No runs yet</div>';
+												return;
+											}
+											
+											// Calculate statistics
+											const totalRuns = data.length;
+											const successfulRuns = data.filter(d => d.Status === 'complete').length;
+											const successRate = Math.round((successfulRuns / totalRuns) * 100);
+											const durations = data.map(d => d.Duration / 1000000); // Convert to ms
+											const avgDuration = durations.reduce((a, b) => a + b, 0) / durations.length;
+											
+											// Get last run info
+											const lastRun = data[0]; // Most recent
+											const lastRunTime = new Date(lastRun.StartTime);
+											const timeSince = getTimeSince(lastRunTime);
+											const lastRunStatus = lastRun.Status === 'complete' ? '✓' : '✗';
+											const lastRunClass = lastRun.Status === 'complete' ? 'success' : 'error';
+											
+											// Create summary HTML
+											const summaryHTML = 
+												'<div class="summary-stats" style="display: flex; flex-direction: row; gap: 1.5rem; width: 100%;">' +
+												'<div class="stat" style="display: flex; align-items: center; gap: 0.4rem;">' +
+												'<span class="stat-icon">📊</span>' +
+												'<span class="stat-value">' + totalRuns + '</span>' +
+												'<span class="stat-label">' + (totalRuns === 1 ? 'run' : 'runs') + '</span>' +
+												'</div>' +
+												'<div class="stat" style="display: flex; align-items: center; gap: 0.4rem;">' +
+												'<span class="stat-icon ' + (successRate >= 80 ? 'success' : successRate >= 50 ? 'warning' : 'error') + '">✓</span>' +
+												'<span class="stat-value">' + successRate + '%</span>' +
+												'<span class="stat-label">success</span>' +
+												'</div>' +
+												'<div class="stat" style="display: flex; align-items: center; gap: 0.4rem;">' +
+												'<span class="stat-icon">⏱</span>' +
+												'<span class="stat-value">' + avgDuration.toFixed(1) + 'ms</span>' +
+												'<span class="stat-label">avg</span>' +
+												'</div>' +
+												'<div class="stat" style="display: flex; align-items: center; gap: 0.4rem;">' +
+												'<span class="stat-icon ' + lastRunClass + '">' + lastRunStatus + '</span>' +
+												'<span class="stat-value">' + timeSince + '</span>' +
+												'<span class="stat-label">ago</span>' +
+												'</div>' +
+												'</div>';
+											
+											container.innerHTML = summaryHTML;
+										})
+										.catch(error => {
+											console.error('Error fetching job history:', error);
+											container.innerHTML = '<div class="summary-error">Failed to load stats</div>';
+										});
+									
+									// Helper function to calculate time since
+									function getTimeSince(date) {
+										const seconds = Math.floor((new Date() - date) / 1000);
+										if (seconds < 60) return seconds + 's';
+										const minutes = Math.floor(seconds / 60);
+										if (minutes < 60) return minutes + 'm';
+										const hours = Math.floor(minutes / 60);
+										if (hours < 24) return hours + 'h';
+										const days = Math.floor(hours / 24);
+										return days + 'd';
+									}
+								})();
+								`),
+							),
+						)
 					}
 					// Controls
 					b.Td().R(
