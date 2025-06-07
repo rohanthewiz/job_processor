@@ -65,9 +65,82 @@ func renderJobsTable(jobs []jobpro.JobRun) string {
 
 // renderJobsTableRows renders just the table rows - for HTMX updates
 func renderJobsTableRows(b *element.Builder, jobs []jobpro.JobRun) (x any) {
+	// Add JavaScript for expand/collapse functionality
+	b.Script().T(`
+	function toggleJobResults(jobId) {
+		const rows = document.querySelectorAll('.job-result-row[data-job-id="' + jobId + '"]');
+		const toggleBtn = document.querySelector('.toggle-btn[data-job-id="' + jobId + '"]');
+		const isExpanded = toggleBtn.classList.contains('expanded');
+		
+		rows.forEach(row => {
+			row.style.display = isExpanded ? 'none' : '';
+		});
+		
+		toggleBtn.classList.toggle('expanded');
+		toggleBtn.textContent = isExpanded ? '▶' : '▼';
+		
+		// Store state in localStorage
+		const expandedJobs = JSON.parse(localStorage.getItem('expandedJobs') || '{}');
+		expandedJobs[jobId] = !isExpanded;
+		localStorage.setItem('expandedJobs', JSON.stringify(expandedJobs));
+	}
+	
+	// Restore expanded state after HTMX update
+	document.addEventListener('htmx:afterSwap', function() {
+		const expandedJobs = JSON.parse(localStorage.getItem('expandedJobs') || '{}');
+		Object.entries(expandedJobs).forEach(([jobId, isExpanded]) => {
+			if (isExpanded) {
+				const toggleBtn = document.querySelector('.toggle-btn[data-job-id="' + jobId + '"]');
+				if (toggleBtn && !toggleBtn.classList.contains('expanded')) {
+					toggleJobResults(jobId);
+				}
+			}
+		});
+		
+		// Ensure all flex containers are properly styled
+		const allFlexContainers = document.querySelectorAll('td > div[style*="flex"]');
+		allFlexContainers.forEach(container => {
+			// Force re-apply flex styles in case they got lost
+			container.style.display = 'flex';
+			container.style.alignItems = 'center';
+			container.style.gap = '0.5rem';
+		});
+	});
+	`)
+
 	element.ForEach(jobs, func(job jobpro.JobRun) {
-		b.Tr().R(
-			b.Td().T(job.JobName),
+		// Determine if this is a main job row or a result row
+		isMainRow := job.ResultId == 0
+		rowClass := ""
+		if isMainRow {
+			rowClass = "job-main-row"
+		} else {
+			rowClass = "job-result-row"
+		}
+
+		b.Tr("class", rowClass, "data-job-id", job.JobID, "style", func() string {
+			if !isMainRow {
+				// Check if this job should be hidden initially
+				return "display: none;"
+			}
+			return ""
+		}()).R(
+			b.Td().R(
+				b.Wrap(func() {
+					if isMainRow {
+						// For main rows, use flex container with toggle button
+						b.Div("style", "display: flex; align-items: center; gap: 0.5rem;").R(
+							b.Span("class", "toggle-btn", "data-job-id", job.JobID,
+								"onclick", "toggleJobResults('"+job.JobID+"')",
+								"style", "cursor: pointer; font-size: 0.8rem; user-select: none; flex-shrink: 0;").T("▶"),
+							b.Span("style", "flex-grow: 1;").T(job.JobName),
+						)
+					} else {
+						// For result rows, just show the name without toggle
+						b.T(job.JobName)
+					}
+				}),
+			),
 			b.Td().T(job.JobID),
 			b.Wrap(func() {
 				// Some Job level attributes
@@ -137,7 +210,7 @@ func renderJobsTableRows(b *element.Builder, jobs []jobpro.JobRun) (x any) {
 									const chartId = 'chart-`+job.JobID+`';
 									const canvas = document.getElementById(chartId);
 									if (!canvas) return;
-									
+
 									// Fetch job history
 									fetch('/jobs/history/`+job.JobID+`')
 										.then(response => response.json())
