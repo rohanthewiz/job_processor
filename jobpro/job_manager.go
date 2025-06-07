@@ -755,5 +755,23 @@ func (m *DefaultJobManager) Shutdown(timeout time.Duration) error {
 	}
 
 	return nil
+}
 
+// GetJobHistory retrieves the execution history for a specific job
+func (m *DefaultJobManager) GetJobHistory(jobID string, limit int) ([]JobResult, error) {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+
+	// Check if job exists
+	if _, exists := m.jobs[jobID]; !exists {
+		return nil, fmt.Errorf("job %s not found", jobID)
+	}
+
+	// Get results from the store
+	results, err := m.store.GetJobResults(jobID, limit)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get job history: %w", err)
+	}
+
+	return results, nil
 }

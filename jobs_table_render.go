@@ -30,6 +30,8 @@ func renderJobsTable(jobs []jobpro.JobRun) string {
 			b.T(`<script src="https://unpkg.com/htmx.org@2.0.4"></script>`),
 			// Add HTMX SSE extension
 			b.T(`<script src="https://unpkg.com/htmx-ext-sse@2.2.2"></script>`),
+			// Add Chart.js for mini charts
+			b.T(`<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>`),
 		),
 		b.Body().R(
 			// Add SSE source connection to the body
@@ -123,11 +125,96 @@ func renderJobsTableRows(b *element.Builder, jobs []jobpro.JobRun) (x any) {
 
 				// Some Run level attributes
 				if job.ResultId == 0 { // no need to display runlevel things for the main job
-					b.Td().T("")
-					b.Td().T("")
-					b.Td().T("")
-					b.Td().T("")
-					b.Td().T("")
+					// For periodic jobs, show a mini chart in the blank cells area
+					if strings.ToLower(job.ScheduleType) == "periodic" {
+						// Merge the 5 blank cells (RunID to Error) into one for the chart
+						b.Td("colspan", "5").R(
+							b.DivClass("chart-container", "style", "height: 60px; width: 100%; position: relative;").R(
+								b.Canvas("id", "chart-"+job.JobID, "style", "max-height: 60px;").T(""),
+								// Script to fetch and render chart data
+								b.Script().T(`
+								(function() {
+									const chartId = 'chart-`+job.JobID+`';
+									const canvas = document.getElementById(chartId);
+									if (!canvas) return;
+									
+									// Fetch job history
+									fetch('/jobs/history/`+job.JobID+`')
+										.then(response => response.json())
+										.then(data => {
+											if (!data || data.length === 0) {
+												canvas.style.display = 'none';
+												return;
+											}
+											
+											// Prepare chart data
+											const labels = data.slice().reverse().map((_, idx) => idx + 1);
+											const durations = data.slice().reverse().map(d => d.Duration / 1000000); // Convert to ms
+											const colors = data.slice().reverse().map(d => 
+												d.Status === 'complete' ? '#4ade80' : '#ef4444'
+											);
+											
+											// Create chart
+											new Chart(canvas, {
+												type: 'line',
+												data: {
+													labels: labels,
+													datasets: [{
+														data: durations,
+														fill: true,
+														backgroundColor: 'rgba(74, 222, 128, 0.2)',
+														borderColor: '#4ade80',
+														borderWidth: 2,
+														pointBackgroundColor: colors,
+														pointBorderColor: colors,
+														pointRadius: 4,
+														pointHoverRadius: 6,
+														tension: 0.3
+													}]
+												},
+												options: {
+													responsive: true,
+													maintainAspectRatio: false,
+													plugins: {
+														legend: { display: false },
+														tooltip: {
+															callbacks: {
+																label: function(context) {
+																	return context.parsed.y.toFixed(1) + ' ms';
+																}
+															}
+														}
+													},
+													scales: {
+														x: { 
+															display: false,
+															grid: { display: false }
+														},
+														y: { 
+															display: false,
+															grid: { display: false },
+															beginAtZero: true
+														}
+													}
+												}
+											});
+										})
+										.catch(error => {
+											console.error('Error fetching job history:', error);
+											canvas.style.display = 'none';
+										});
+								})();
+								`),
+							),
+						)
+					} else {
+						// For one-time jobs, keep the blank cells
+						b.Td().T("")
+						b.Td().T("")
+						b.Td().T("")
+						b.Td().T("")
+						b.Td().T("")
+					}
 					// Controls
 					b.Td().R(
 						b.DivClass("btn-group").R(

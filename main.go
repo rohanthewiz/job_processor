@@ -252,6 +252,22 @@ func main() {
 			})
 		})
 
+		// Get job history for charts
+		s.Get("/jobs/history/:job-id", func(ctx rweb.Context) error {
+			jobID := ctx.Request().Param("job-id")
+
+			results, err := jobMgr.GetJobHistory(jobID, 10) // Get last 10 runs
+			if err != nil {
+				logger.LogErr(err, "Failed to get job history", "jobID", jobID)
+				ctx.Status(500)
+				return ctx.WriteJSON(map[string]string{
+					"error": err.Error(),
+				})
+			}
+
+			return ctx.WriteJSON(results)
+		})
+
 		// Run the server
 		err := s.Run()
 		if err != nil {
