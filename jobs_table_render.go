@@ -69,11 +69,18 @@ func renderJobsTableRows(b *element.Builder, jobs []jobpro.JobRun, resultCounts 
 	// Add JavaScript for expand/collapse functionality and load more
 	b.Script().T(`
 	function toggleJobResults(jobId) {
-		const rows = document.querySelectorAll('.job-result-row[data-job-id="' + jobId + '"]');
+		const resultRows = document.querySelectorAll('.job-result-row[data-job-id="' + jobId + '"]');
+		const loadMoreRows = document.querySelectorAll('.load-more-row.job-' + jobId);
 		const toggleBtn = document.querySelector('.toggle-btn[data-job-id="' + jobId + '"]');
 		const isExpanded = toggleBtn.classList.contains('expanded');
 		
-		rows.forEach(row => {
+		// Toggle result rows
+		resultRows.forEach(row => {
+			row.style.display = isExpanded ? 'none' : '';
+		});
+		
+		// Toggle load more rows
+		loadMoreRows.forEach(row => {
 			row.style.display = isExpanded ? 'none' : '';
 		});
 		
@@ -123,7 +130,7 @@ func renderJobsTableRows(b *element.Builder, jobs []jobpro.JobRun, resultCounts 
 				// Make sure new rows are visible if job is expanded
 				const toggleBtn = document.querySelector('.toggle-btn[data-job-id="' + jobId + '"]');
 				if (toggleBtn && toggleBtn.classList.contains('expanded')) {
-					const newRows = document.querySelectorAll('.result-row.job-' + jobId + ', .load-more-row.job-' + jobId);
+					const newRows = document.querySelectorAll('.job-result-row[data-job-id="' + jobId + '"], .load-more-row.job-' + jobId);
 					newRows.forEach(row => {
 						row.style.display = '';
 					});
@@ -160,7 +167,7 @@ func renderJobsTableRows(b *element.Builder, jobs []jobpro.JobRun, resultCounts 
 				b.Tr("class", fmt.Sprintf("load-more-row job-%s", lastJobID),
 					"data-job-id", lastJobID,
 					"style", "display: none;").R(
-					b.Td("colspan", "6", "style", "text-align: center; padding: 10px;").R(
+					b.Td("colspan", "12", "style", "text-align: center; padding: 10px;").R(
 						b.Button("class", "btn btn-secondary load-more-btn",
 							"data-job-id", lastJobID,
 							"data-offset", fmt.Sprintf("%d", displayedResults[lastJobID]),
@@ -220,7 +227,7 @@ func renderJobsTableRows(b *element.Builder, jobs []jobpro.JobRun, resultCounts 
 										}
 										b.SpanClass("result-count",
 											"style", "font-size: 0.8rem; color: #666; white-space: nowrap;").
-											F("(showing %d of %d)", displayed, total)
+											F("(%d of %d)", displayed, total)
 									}
 								}
 							}),
@@ -492,7 +499,7 @@ func renderJobsTableRows(b *element.Builder, jobs []jobpro.JobRun, resultCounts 
 					)
 
 				} else { // run level things
-					b.Td().F("#%d", resultCount)
+					b.Td().F("#%d", job.RunNumber)
 					b.TdClass("timestamp").T(job.StartTime.Format("2006-01-02 15:04 MST"))
 					b.Td().F("%0.1f ms", float64(job.Duration.Microseconds())/1000)
 					b.Td().T(job.ResultStatus)

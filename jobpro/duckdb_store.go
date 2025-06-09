@@ -288,6 +288,7 @@ type JobRun struct {
 	Duration     time.Duration
 	ResultStatus string
 	ErrorMsg     string
+	RunNumber    int
 }
 
 type JobRunDBRow struct {
@@ -305,6 +306,7 @@ type JobRunDBRow struct {
 	// Duration     time.Duration
 	ResultStatus sql.NullString
 	ErrorMsg     sql.NullString
+	RunNumber    sql.NullInt64
 }
 
 // GetJobRunsWithPagination retrieves jobs with limited results per job
@@ -335,13 +337,18 @@ func (s *DuckDBStore) GetJobRunsWithPagination(resultsPerJob int) ([]JobRun, map
 	// Build the query with pagination per job
 	// First get all job main rows, then union with limited results per job
 	query := `
-	WITH job_main_rows AS (
+	WITH job_counts AS (
+		SELECT job_id, COUNT(*) as total_count
+		FROM job_results
+		GROUP BY job_id
+	),
+	job_main_rows AS (
 		SELECT j.job_id, j.job_name, 
 			   CASE WHEN j.schedule IS NULL OR j.schedule = '' THEN 'one-time' ELSE j.schedule END as frequency,
 			   j.schedule, j.next_run_time, j.status, j.schedule_type, j.created_at, j.updated_at,
 			   NULL::BIGINT as result_id, NULL::TIMESTAMP as start_time, NULL::BIGINT as duration_micro, 
 			   NULL::VARCHAR as result_status, NULL::VARCHAR as error_msg,
-			   0 as row_type
+			   0 as row_type, NULL::INT as run_number
 		FROM jobs j
 	),
 	ranked_results AS (
@@ -350,9 +357,11 @@ func (s *DuckDBStore) GetJobRunsWithPagination(resultsPerJob int) ([]JobRun, map
 			   j.created_at, NULL::TIMESTAMP as updated_at,
 			   r.result_id, r.start_time, r.duration_micro, r.status as result_status, r.error_msg,
 			   1 as row_type,
-			   ROW_NUMBER() OVER (PARTITION BY r.job_id ORDER BY r.start_time DESC) as rn
+			   ROW_NUMBER() OVER (PARTITION BY r.job_id ORDER BY r.start_time DESC) as rn,
+			   (jc.total_count - ROW_NUMBER() OVER (PARTITION BY r.job_id ORDER BY r.start_time DESC) + 1) as run_number
 		FROM job_results r
 		JOIN jobs j ON r.job_id = j.job_id
+		JOIN job_counts jc ON r.job_id = jc.job_id
 		WHERE r.job_id IN (SELECT job_id FROM jobs)
 	),
 	limited_results AS (
@@ -363,12 +372,12 @@ func (s *DuckDBStore) GetJobRunsWithPagination(resultsPerJob int) ([]JobRun, map
 		UNION ALL
 		SELECT job_id, job_name, frequency, schedule, next_run_time, status, 
 			   schedule_type, created_at, updated_at, result_id, start_time, 
-			   duration_micro, result_status, error_msg, row_type
+			   duration_micro, result_status, error_msg, row_type, run_number
 		FROM limited_results
 	)
 	SELECT job_id, job_name, frequency, schedule, next_run_time, status,
 		   schedule_type, created_at, updated_at, result_id, start_time, 
-		   duration_micro, result_status, error_msg
+		   duration_micro, result_status, error_msg, run_number
 	FROM all_rows
 	ORDER BY created_at DESC, job_id, row_type, start_time DESC
 	`
@@ -389,7 +398,7 @@ func (s *DuckDBStore) GetJobRunsWithPagination(resultsPerJob int) ([]JobRun, map
 			&result.JobID, &result.JobName, &result.FreqType, &result.Schedule, &result.NextRunTime, &result.JobStatus,
 			&result.ScheduleType, &result.CreatedAt, &result.UpdatedAt,
 			&result.ResultId, &result.StartTime, &durationMicro,
-			&result.ResultStatus, &result.ErrorMsg,
+			&result.ResultStatus, &result.ErrorMsg, &result.RunNumber,
 		)
 		if err != nil {
 			return nil, nil, serr.Wrap(err, "failed to scan result row")
@@ -409,6 +418,7 @@ func (s *DuckDBStore) GetJobRunsWithPagination(resultsPerJob int) ([]JobRun, map
 			StartTime:    result.StartTime.Time,
 			ResultStatus: result.ResultStatus.String,
 			ErrorMsg:     result.ErrorMsg.String,
+			RunNumber:    int(result.RunNumber.Int64),
 		}
 
 		if durationMicro.Valid {

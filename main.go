@@ -36,7 +36,7 @@ func main() {
 		ID:         "periodicJob1",
 		Name:       "Periodic Job 1",
 		IsPeriodic: true,
-		Schedule:   "*/15 * * * * *",
+		Schedule:   "*/10 * * * * *",
 		AutoStart:  true,
 		JobFunction: func() error {
 			fmt.Println("Periodic job doing work")
@@ -112,7 +112,7 @@ func main() {
 		// Get more results for a specific job
 		s.Get("/jobs/results/:job-id", func(ctx rweb.Context) error {
 			jobID := ctx.Request().Param("job-id")
-			
+
 			// Get offset from query parameter
 			offsetStr := ctx.Request().QueryParam("offset")
 			offset := 0
@@ -134,9 +134,16 @@ func main() {
 			// Render result rows as HTML
 			b := element.NewBuilder()
 			for i, result := range results {
-				resultNum := offset + i + 1
-				b.Tr("class", fmt.Sprintf("result-row job-%s", jobID), "style", "display: none;").R(
-					b.Td().F("%d", resultNum),
+				// Calculate actual run number: most recent run has highest number
+				runNumber := totalCount - offset - i
+				b.Tr("class", fmt.Sprintf("job-result-row job-%s", jobID), "data-job-id", jobID, "style", "display: none;").R(
+					b.Td().T(""),    // Empty for job name
+					b.Td().T(jobID), // Job ID
+					b.Td().T(""),    // Empty for frequency
+					b.Td().T(""),    // Empty for status
+					b.Td().T(""),    // Empty for created
+					b.Td().T(""),    // Empty for updated
+					b.Td().F("#%d", runNumber),
 					b.TdClass("timestamp").T(result.StartTime.Format("2006-01-02 15:04 MST")),
 					b.Td().F("%0.1f ms", float64(result.Duration.Microseconds())/1000),
 					b.Td().T(string(result.Status)),
@@ -148,7 +155,7 @@ func main() {
 			// Add a load more button if there are more results
 			if offset+len(results) < totalCount {
 				b.Tr("class", fmt.Sprintf("load-more-row job-%s", jobID), "style", "display: none;").R(
-					b.Td("colspan", "6", "style", "text-align: center; padding: 10px;").R(
+					b.Td("colspan", "12", "style", "text-align: center; padding: 10px;").R(
 						b.Button("class", "btn btn-secondary load-more-btn",
 							"data-job-id", jobID,
 							"data-offset", fmt.Sprintf("%d", offset+10),
