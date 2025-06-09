@@ -328,8 +328,8 @@ func renderJobsTableRows(b *element.Builder, jobs []jobpro.JobRun, resultCounts 
 												const rateColor = successRate >= 80 ? '#4ade80' : successRate >= 50 ? '#fbbf24' : '#ef4444';
 												successRateContainer.innerHTML = 
 													'<div style="text-align: center;">' +
-													'<div style="font-size: 1.2rem; font-weight: bold; color: ' + rateColor + ';">' + successRate + '%</div>' +
-													'<div style="font-size: 0.7rem; color: #666;">success</div>' +
+													'<div style="font-size: 1.1em; font-weight: bold; color: ' + rateColor + ';">' + successRate + '%</div>' +
+													'<div style="font-size: 0.8em; color: #666;">success</div>' +
 													'</div>';
 											}
 											
