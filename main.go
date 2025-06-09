@@ -7,6 +7,7 @@ import (
 	"job_processor/pubsub"
 	"job_processor/shutdown"
 	"os"
+	"strconv"
 
 	"github.com/rohanthewiz/element"
 	"github.com/rohanthewiz/logger"
@@ -85,25 +86,82 @@ func main() {
 		s.Get("/", rootHandler)
 
 		s.Get("/jobs", func(ctx rweb.Context) error {
-			jobs, err := jobMgr.ListJobs()
+			jobs, resultCounts, err := jobMgr.ListJobsWithPagination(10)
 			if err != nil {
 				logger.LogErr(err, "Failed to list jobs")
 				return serr.Wrap(err)
 			}
-			return ctx.WriteHTML(renderJobsTable(jobs))
+			return ctx.WriteHTML(renderJobsTable(jobs, resultCounts))
 		})
 
 		// Endpoint to get the jobs table rows
 		// Typically this is called after an SSE event is received on job update
 		s.Get("/jobs/get-table-rows", func(ctx rweb.Context) error {
-			jobs, err := jobMgr.ListJobs()
+			jobs, resultCounts, err := jobMgr.ListJobsWithPagination(10)
 			if err != nil {
 				logger.LogErr(err, "Failed to list jobs")
 				return serr.Wrap(err) // guaranteed
 			}
 
 			b := element.NewBuilder()
-			renderJobsTableRows(b, jobs)
+			renderJobsTableRows(b, jobs, resultCounts)
+
+			return ctx.WriteHTML(b.String())
+		})
+
+		// Get more results for a specific job
+		s.Get("/jobs/results/:job-id", func(ctx rweb.Context) error {
+			jobID := ctx.Request().Param("job-id")
+			
+			// Get offset from query parameter
+			offsetStr := ctx.Request().QueryParam("offset")
+			offset := 0
+			if offsetStr != "" {
+				if val, err := strconv.Atoi(offsetStr); err == nil {
+					offset = val
+				}
+			}
+
+			results, totalCount, err := jobMgr.GetJobResultsPaginated(jobID, offset, 10)
+			if err != nil {
+				logger.LogErr(err, "Failed to get job results", "jobID", jobID)
+				ctx.Status(500)
+				return ctx.WriteJSON(map[string]string{
+					"error": err.Error(),
+				})
+			}
+
+			// Render result rows as HTML
+			b := element.NewBuilder()
+			for i, result := range results {
+				resultNum := offset + i + 1
+				b.Tr("class", fmt.Sprintf("result-row job-%s", jobID), "style", "display: none;").R(
+					b.Td().F("%d", resultNum),
+					b.TdClass("timestamp").T(result.StartTime.Format("2006-01-02 15:04 MST")),
+					b.Td().F("%0.1f ms", float64(result.Duration.Microseconds())/1000),
+					b.Td().T(string(result.Status)),
+					b.Td().T(result.ErrorMsg),
+					b.Td().T(""), // Empty controls column for result rows
+				)
+			}
+
+			// Add a load more button if there are more results
+			if offset+len(results) < totalCount {
+				b.Tr("class", fmt.Sprintf("load-more-row job-%s", jobID), "style", "display: none;").R(
+					b.Td("colspan", "6", "style", "text-align: center; padding: 10px;").R(
+						b.Button("class", "btn btn-secondary load-more-btn",
+							"data-job-id", jobID,
+							"data-offset", fmt.Sprintf("%d", offset+10),
+							"data-total", fmt.Sprintf("%d", totalCount),
+							"onclick", "loadMoreResults(this)").F(
+							"Load %d more (showing %d of %d)",
+							min(10, totalCount-(offset+len(results))),
+							offset+len(results),
+							totalCount,
+						),
+					),
+				)
+			}
 
 			return ctx.WriteHTML(b.String())
 		})

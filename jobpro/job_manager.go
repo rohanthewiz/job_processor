@@ -711,6 +711,23 @@ func (m *DefaultJobManager) ListJobs() (jobs []JobRun, err error) {
 	return
 }
 
+// ListJobsWithPagination returns jobs with limited results per job and result counts
+func (m *DefaultJobManager) ListJobsWithPagination(resultsPerJob int) (jobs []JobRun, resultCounts map[string]int, err error) {
+	jobs, resultCounts, err = m.store.GetJobRunsWithPagination(resultsPerJob)
+	if err != nil {
+		return nil, nil, serr.Wrap(err, "error listing jobs with pagination")
+	}
+
+	log.Printf("Loaded %d jobs with pagination from store", len(jobs))
+
+	return
+}
+
+// GetJobResultsPaginated returns paginated results for a specific job
+func (m *DefaultJobManager) GetJobResultsPaginated(jobID string, offset, limit int) ([]JobResult, int, error) {
+	return m.store.GetJobResultsPaginated(jobID, offset, limit)
+}
+
 // Shutdown gracefully stops all running jobs
 func (m *DefaultJobManager) Shutdown(timeout time.Duration) error {
 	m.mu.Lock()

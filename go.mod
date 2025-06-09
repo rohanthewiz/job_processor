@@ -10,7 +10,7 @@ require (
 	github.com/robfig/cron/v3 v3.0.1
 	github.com/rohanthewiz/element v0.5.2
 	github.com/rohanthewiz/logger v1.2.6-0.20250414041848-3a03f01e83a7
-	github.com/rohanthewiz/rweb v0.1.15-0.20250509013023-82d70f903f8a
+	github.com/rohanthewiz/rweb v0.1.15-0.20250608012427-5f3c92508bc1
 	github.com/rohanthewiz/serr v1.2.3-0.20250410222410-8aecb9ee7b09
 )
 
