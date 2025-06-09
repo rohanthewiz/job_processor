@@ -288,6 +288,7 @@ type JobRun struct {
 	Duration     time.Duration
 	ResultStatus string
 	ErrorMsg     string
+	RunNumber    int
 }
 
 type JobRunDBRow struct {
@@ -305,6 +306,170 @@ type JobRunDBRow struct {
 	// Duration     time.Duration
 	ResultStatus sql.NullString
 	ErrorMsg     sql.NullString
+	RunNumber    sql.NullInt64
+}
+
+// GetJobRunsWithPagination retrieves jobs with limited results per job
+func (s *DuckDBStore) GetJobRunsWithPagination(resultsPerJob int) ([]JobRun, map[string]int, error) {
+	// Map to store total result count per job
+	resultCounts := make(map[string]int)
+	
+	// Get total count of results per job
+	countRows, err := s.db.Query(`
+		SELECT job_id, COUNT(*) as total_count 
+		FROM job_results 
+		GROUP BY job_id
+	`)
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed to get result counts: %w", err)
+	}
+	defer countRows.Close()
+	
+	for countRows.Next() {
+		var jobID string
+		var count int
+		if err := countRows.Scan(&jobID, &count); err != nil {
+			return nil, nil, fmt.Errorf("failed to scan count row: %w", err)
+		}
+		resultCounts[jobID] = count
+	}
+
+	// Build the query with pagination per job
+	// First get all job main rows, then union with limited results per job
+	query := `
+	WITH job_counts AS (
+		SELECT job_id, COUNT(*) as total_count
+		FROM job_results
+		GROUP BY job_id
+	),
+	job_main_rows AS (
+		SELECT j.job_id, j.job_name, 
+			   CASE WHEN j.schedule IS NULL OR j.schedule = '' THEN 'one-time' ELSE j.schedule END as frequency,
+			   j.schedule, j.next_run_time, j.status, j.schedule_type, j.created_at, j.updated_at,
+			   NULL::BIGINT as result_id, NULL::TIMESTAMP as start_time, NULL::BIGINT as duration_micro, 
+			   NULL::VARCHAR as result_status, NULL::VARCHAR as error_msg,
+			   0 as row_type, NULL::INT as run_number
+		FROM jobs j
+	),
+	ranked_results AS (
+		SELECT r.job_id, NULL as job_name, NULL as frequency, NULL as schedule, 
+			   NULL::TIMESTAMP as next_run_time, NULL as status, NULL as schedule_type, 
+			   j.created_at, NULL::TIMESTAMP as updated_at,
+			   r.result_id, r.start_time, r.duration_micro, r.status as result_status, r.error_msg,
+			   1 as row_type,
+			   ROW_NUMBER() OVER (PARTITION BY r.job_id ORDER BY r.start_time DESC) as rn,
+			   (jc.total_count - ROW_NUMBER() OVER (PARTITION BY r.job_id ORDER BY r.start_time DESC) + 1) as run_number
+		FROM job_results r
+		JOIN jobs j ON r.job_id = j.job_id
+		JOIN job_counts jc ON r.job_id = jc.job_id
+		WHERE r.job_id IN (SELECT job_id FROM jobs)
+	),
+	limited_results AS (
+		SELECT * FROM ranked_results WHERE rn <= ?
+	),
+	all_rows AS (
+		SELECT * FROM job_main_rows
+		UNION ALL
+		SELECT job_id, job_name, frequency, schedule, next_run_time, status, 
+			   schedule_type, created_at, updated_at, result_id, start_time, 
+			   duration_micro, result_status, error_msg, row_type, run_number
+		FROM limited_results
+	)
+	SELECT job_id, job_name, frequency, schedule, next_run_time, status,
+		   schedule_type, created_at, updated_at, result_id, start_time, 
+		   duration_micro, result_status, error_msg, run_number
+	FROM all_rows
+	ORDER BY created_at DESC, job_id, row_type, start_time DESC
+	`
+
+	rows, err := s.db.Query(query, resultsPerJob)
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed to execute paginated query: %w", err)
+	}
+	defer rows.Close()
+
+	results := make([]JobRun, 0, 32)
+	
+	for rows.Next() {
+		var result JobRunDBRow
+		var durationMicro sql.NullInt64
+
+		err = rows.Scan(
+			&result.JobID, &result.JobName, &result.FreqType, &result.Schedule, &result.NextRunTime, &result.JobStatus,
+			&result.ScheduleType, &result.CreatedAt, &result.UpdatedAt,
+			&result.ResultId, &result.StartTime, &durationMicro,
+			&result.ResultStatus, &result.ErrorMsg, &result.RunNumber,
+		)
+		if err != nil {
+			return nil, nil, serr.Wrap(err, "failed to scan result row")
+		}
+
+		jr := JobRun{
+			JobID:        result.JobID,
+			JobName:      result.JobName.String,
+			FreqType:     result.FreqType.String,
+			Schedule:     result.Schedule.String,
+			NextRunTime:  result.NextRunTime.Time,
+			JobStatus:    result.JobStatus.String,
+			ScheduleType: result.ScheduleType.String,
+			CreatedAt:    result.CreatedAt.Time,
+			UpdatedAt:    result.UpdatedAt.Time,
+			ResultId:     result.ResultId.Int64,
+			StartTime:    result.StartTime.Time,
+			ResultStatus: result.ResultStatus.String,
+			ErrorMsg:     result.ErrorMsg.String,
+			RunNumber:    int(result.RunNumber.Int64),
+		}
+
+		if durationMicro.Valid {
+			jr.Duration = time.Duration(durationMicro.Int64) * time.Microsecond
+		}
+
+		results = append(results, jr)
+	}
+
+
+	return results, resultCounts, nil
+}
+
+// GetJobResultsPaginated retrieves paginated results for a specific job
+func (s *DuckDBStore) GetJobResultsPaginated(jobID string, offset, limit int) ([]JobResult, int, error) {
+	// Get total count
+	var totalCount int
+	err := s.db.QueryRow(`SELECT COUNT(*) FROM job_results WHERE job_id = ?`, jobID).Scan(&totalCount)
+	if err != nil {
+		return nil, 0, fmt.Errorf("failed to get total count: %w", err)
+	}
+
+	// Get paginated results
+	rows, err := s.db.Query(`
+		SELECT job_id, start_time, end_time, duration_micro, status, success_msg, error_msg
+		FROM job_results 
+		WHERE job_id = ?
+		ORDER BY start_time DESC
+		LIMIT ? OFFSET ?
+	`, jobID, limit, offset)
+	if err != nil {
+		return nil, 0, fmt.Errorf("failed to get job results: %w", err)
+	}
+	defer rows.Close()
+
+	results := make([]JobResult, 0, limit)
+	for rows.Next() {
+		var result JobResult
+		var durationMicro int64
+		err := rows.Scan(
+			&result.JobID, &result.StartTime, &result.EndTime, &durationMicro,
+			&result.Status, &result.SuccessMsg, &result.ErrorMsg,
+		)
+		if err != nil {
+			return nil, 0, fmt.Errorf("failed to scan result row: %w", err)
+		}
+		result.Duration = time.Duration(durationMicro) * time.Microsecond
+		results = append(results, result)
+	}
+
+	return results, totalCount, nil
 }
 
 // GetJobRuns retrieves historical results for a job

@@ -2,6 +2,7 @@ package main
 
 import (
 	_ "embed"
+	"fmt"
 	"job_processor/jobpro"
 	"job_processor/util"
 	"strings"
@@ -15,7 +16,7 @@ var tableStyles string
 const jobEvent = "job-update"
 
 // renderJobsTable renders the full jobs table page
-func renderJobsTable(jobs []jobpro.JobRun) string {
+func renderJobsTable(jobs []jobpro.JobRun, resultCounts map[string]int) string {
 	b := element.NewBuilder()
 	cols := []string{"Job", "ID", "Freq", "Status", "Created", "Updated",
 		"Run&nbsp;ID", "Run Start", "Duration", "Status", "Error", "Controls"}
@@ -52,7 +53,7 @@ func renderJobsTable(jobs []jobpro.JobRun) string {
 							"hx-get", "/jobs/get-table-rows",
 							"hx-swap", "innerHTML").R( // It seems best to do the SSE Swap on the immediate children
 
-							renderJobsTableRows(b, jobs),
+							renderJobsTableRows(b, jobs, resultCounts),
 						),
 					),
 				),
@@ -64,15 +65,22 @@ func renderJobsTable(jobs []jobpro.JobRun) string {
 }
 
 // renderJobsTableRows renders just the table rows - for HTMX updates
-func renderJobsTableRows(b *element.Builder, jobs []jobpro.JobRun) (x any) {
-	// Add JavaScript for expand/collapse functionality
+func renderJobsTableRows(b *element.Builder, jobs []jobpro.JobRun, resultCounts map[string]int) (x any) {
+	// Add JavaScript for expand/collapse functionality and load more
 	b.Script().T(`
 	function toggleJobResults(jobId) {
-		const rows = document.querySelectorAll('.job-result-row[data-job-id="' + jobId + '"]');
+		const resultRows = document.querySelectorAll('.job-result-row[data-job-id="' + jobId + '"]');
+		const loadMoreRows = document.querySelectorAll('.load-more-row.job-' + jobId);
 		const toggleBtn = document.querySelector('.toggle-btn[data-job-id="' + jobId + '"]');
 		const isExpanded = toggleBtn.classList.contains('expanded');
 		
-		rows.forEach(row => {
+		// Toggle result rows
+		resultRows.forEach(row => {
+			row.style.display = isExpanded ? 'none' : '';
+		});
+		
+		// Toggle load more rows
+		loadMoreRows.forEach(row => {
 			row.style.display = isExpanded ? 'none' : '';
 		});
 		
@@ -106,11 +114,83 @@ func renderJobsTableRows(b *element.Builder, jobs []jobpro.JobRun) (x any) {
 			container.style.gap = '0.5rem';
 		});
 	});
+	
+	function loadMoreResults(button) {
+		const jobId = button.getAttribute('data-job-id');
+		const offset = button.getAttribute('data-offset');
+		const loadMoreRow = button.closest('tr');
+		
+		fetch('/jobs/results/' + jobId + '?offset=' + offset)
+			.then(response => response.text())
+			.then(html => {
+				// Insert the new rows before the load more row
+				loadMoreRow.insertAdjacentHTML('beforebegin', html);
+				// Remove the old load more row
+				loadMoreRow.remove();
+				// Make sure new rows are visible if job is expanded
+				const toggleBtn = document.querySelector('.toggle-btn[data-job-id="' + jobId + '"]');
+				if (toggleBtn && toggleBtn.classList.contains('expanded')) {
+					const newRows = document.querySelectorAll('.job-result-row[data-job-id="' + jobId + '"], .load-more-row.job-' + jobId);
+					newRows.forEach(row => {
+						row.style.display = '';
+					});
+				}
+			})
+			.catch(error => {
+				console.error('Error loading more results:', error);
+				button.textContent = 'Error loading results';
+				button.disabled = true;
+			});
+	}
 	`)
 
-	element.ForEach(jobs, func(job jobpro.JobRun) {
+	// Track results per job
+	currentJobID := ""
+	resultCount := 0
+	displayedResults := make(map[string]int)
+	lastJobID := ""
+
+	for _, job := range jobs {
 		// Determine if this is a main job row or a result row
 		isMainRow := job.ResultId == 0
+
+		// If we've moved to a new job and the previous job has more results
+		if isMainRow && lastJobID != "" && lastJobID != job.JobID {
+			if total, exists := resultCounts[lastJobID]; exists && displayedResults[lastJobID] < total {
+				// Add load more button for the previous job
+				remaining := total - displayedResults[lastJobID]
+				loadCount := 10
+				if remaining < loadCount {
+					loadCount = remaining
+				}
+
+				b.Tr("class", fmt.Sprintf("load-more-row job-%s", lastJobID),
+					"data-job-id", lastJobID,
+					"style", "display: none;").R(
+					b.Td("colspan", "12", "style", "text-align: center; padding: 10px;").R(
+						b.Button("class", "btn btn-secondary load-more-btn",
+							"data-job-id", lastJobID,
+							"data-offset", fmt.Sprintf("%d", displayedResults[lastJobID]),
+							"data-total", fmt.Sprintf("%d", total),
+							"onclick", "loadMoreResults(this)").F(
+							"Load %d more (showing %d of %d)",
+							loadCount,
+							displayedResults[lastJobID],
+							total,
+						),
+					),
+				)
+			}
+		}
+
+		if isMainRow {
+			currentJobID = job.JobID
+			resultCount = 0
+			lastJobID = job.JobID
+		} else {
+			resultCount++
+			displayedResults[currentJobID] = resultCount
+		}
 		rowClass := ""
 		if isMainRow {
 			rowClass = "job-main-row"
@@ -134,6 +214,23 @@ func renderJobsTableRows(b *element.Builder, jobs []jobpro.JobRun) (x any) {
 								"onclick", "toggleJobResults('"+job.JobID+"')",
 								"style", "cursor: pointer; font-size: 0.8rem; user-select: none; flex-shrink: 0;").T("▶"),
 							b.Span("style", "flex-grow: 1;").T(job.JobName),
+							// Add result count indicator for periodic jobs
+							b.Wrap(func() {
+								if strings.ToLower(job.ScheduleType) == "periodic" {
+									if total, exists := resultCounts[job.JobID]; exists && total > 0 {
+										displayed := displayedResults[job.JobID]
+										if displayed == 0 {
+											displayed = 10 // We're showing up to 10 by default
+											if total < displayed {
+												displayed = total
+											}
+										}
+										b.SpanClass("result-count",
+											"style", "font-size: 0.8rem; color: #666; white-space: nowrap;").
+											F("(%d of %d)", displayed, total)
+									}
+								}
+							}),
 						)
 					} else {
 						// For result rows, just show the name without toggle
@@ -201,9 +298,13 @@ func renderJobsTableRows(b *element.Builder, jobs []jobpro.JobRun) (x any) {
 					// For periodic jobs, show a mini chart in the blank cells area
 					if strings.ToLower(job.ScheduleType) == "periodic" {
 						// Merge the 5 blank cells (RunID to Error) into one for the chart
-						b.Td("colspan", "5").R(
-							b.DivClass("chart-container", "style", "height: 60px; width: 100%; position: relative;").R(
-								b.Canvas("id", "chart-"+job.JobID, "style", "max-height: 60px;").T(""),
+						b.Td("colspan", "5", "style", "position: relative; padding: 0.75rem 1rem;").R(
+							b.DivClass("chart-container", "style", "height: 60px; width: 100%; max-width: 450px; position: relative; display: flex; align-items: center; gap: 0.5rem; overflow: hidden;").R(
+								b.DivClass("success-rate-container", "id", "success-rate-"+job.JobID,
+									"style", "font-size: 0.9rem; white-space: nowrap; width: 70px; flex-shrink: 0; text-align: center;").T(""),
+								b.Div("style", "flex: 1; overflow: hidden; position: relative;").R(
+									b.Canvas("id", "chart-"+job.JobID, "style", "display: block; max-height: 60px;").T(""),
+								),
 								// Script to fetch and render chart data
 								b.Script().T(`
 								(function() {
@@ -217,7 +318,26 @@ func renderJobsTableRows(b *element.Builder, jobs []jobpro.JobRun) (x any) {
 										.then(data => {
 											if (!data || data.length === 0) {
 												canvas.style.display = 'none';
+												const successRateContainer = document.getElementById('success-rate-`+job.JobID+`');
+												if (successRateContainer) {
+													successRateContainer.innerHTML = '<span style="color: #999;">No runs</span>';
+												}
 												return;
+											}
+											
+											// Calculate success rate
+											const successfulRuns = data.filter(d => d.Status === 'complete').length;
+											const successRate = Math.round((successfulRuns / data.length) * 100);
+											
+											// Display success rate
+											const successRateContainer = document.getElementById('success-rate-`+job.JobID+`');
+											if (successRateContainer) {
+												const rateColor = successRate >= 80 ? '#4ade80' : successRate >= 50 ? '#fbbf24' : '#ef4444';
+												successRateContainer.innerHTML = 
+													'<div style="text-align: center;">' +
+													'<div style="font-size: 1.1em; font-weight: bold; color: ' + rateColor + ';">' + successRate + '%</div>' +
+													'<div style="font-size: 0.8em; color: #666;">success</div>' +
+													'</div>';
 											}
 											
 											// Prepare chart data
@@ -379,7 +499,7 @@ func renderJobsTableRows(b *element.Builder, jobs []jobpro.JobRun) (x any) {
 					)
 
 				} else { // run level things
-					b.Td().F("%d", job.ResultId)
+					b.Td().F("#%d", job.RunNumber)
 					b.TdClass("timestamp").T(job.StartTime.Format("2006-01-02 15:04 MST"))
 					b.Td().F("%0.1f ms", float64(job.Duration.Microseconds())/1000)
 					b.Td().T(job.ResultStatus)
@@ -388,7 +508,36 @@ func renderJobsTableRows(b *element.Builder, jobs []jobpro.JobRun) (x any) {
 				}
 			}),
 		)
-	})
+	}
+
+	// Add load more button for the last job if needed
+	if lastJobID != "" {
+		if total, exists := resultCounts[lastJobID]; exists && displayedResults[lastJobID] < total {
+			remaining := total - displayedResults[lastJobID]
+			loadCount := 10
+			if remaining < loadCount {
+				loadCount = remaining
+			}
+
+			b.Tr("class", fmt.Sprintf("load-more-row job-%s", lastJobID),
+				"data-job-id", lastJobID,
+				"style", "display: none;").R(
+				b.Td("colspan", "6", "style", "text-align: center; padding: 10px;").R(
+					b.Button("class", "btn btn-secondary load-more-btn",
+						"data-job-id", lastJobID,
+						"data-offset", fmt.Sprintf("%d", displayedResults[lastJobID]),
+						"data-total", fmt.Sprintf("%d", total),
+						"onclick", "loadMoreResults(this)").F(
+						"Load %d more (showing %d of %d)",
+						loadCount,
+						displayedResults[lastJobID],
+						total,
+					),
+				),
+			)
+		}
+	}
+
 	return
 }
 

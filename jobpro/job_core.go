@@ -91,6 +91,10 @@ type JobStore interface {
 	GetJobResults(jobID string, limit int) ([]JobResult, error)
 	// GetJobRuns retrieves historical runs for all jobs
 	GetJobRuns(limit int) ([]JobRun, error)
+	// GetJobRunsWithPagination retrieves jobs with limited results per job
+	GetJobRunsWithPagination(resultsPerJob int) ([]JobRun, map[string]int, error)
+	// GetJobResultsPaginated retrieves paginated results for a specific job
+	GetJobResultsPaginated(jobID string, offset, limit int) ([]JobResult, int, error)
 	// CleanupOldJobResults deletes job results older than the specified duration
 	CleanupJobResults(olderThan time.Duration) error
 	// Close closes the database connection
@@ -115,6 +119,10 @@ type JobMgr interface {
 	DeleteJob(id string) error
 	// ListJobs lists all jobs
 	ListJobs() ([]JobRun, error)
+	// ListJobsWithPagination lists jobs with limited results per job
+	ListJobsWithPagination(resultsPerJob int) ([]JobRun, map[string]int, error)
+	// GetJobResultsPaginated returns paginated results for a specific job
+	GetJobResultsPaginated(jobID string, offset, limit int) ([]JobResult, int, error)
 	// GetJobStatus retrieves the current status of a job
 	GetJobStatus(id string) (JobStatus, error)
 	// GetJobsUpdatedChan returns a channel that signals when jobs are updated in the manager.
