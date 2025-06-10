@@ -97,26 +97,26 @@ func registerJobs(jobMgr *jobpro.DefaultJobManager) {
 		// 	AutoStart:   false, // This job won't start automatically
 		// 	JobFunction: jobFunctions["onetimeJob2"],
 		// })
-	} else {
-		// Register jobs from configs
-		logger.F("%d job configurations received from JSON file", len(configs))
-		for _, config := range configs {
-			jobFunc, exists := jobFunctions[config.ID]
-			if !exists {
-				logger.Log("Warning: No job function found for job ID", "id", config.ID)
-				continue
-			}
+	}
 
-			// Add the job function to the config
-			config.JobFunction = jobFunc
-
-			// Register the job
-			jobpro.RegisterJob(config)
+	// Register jobs from configs
+	logger.F("%d job configurations received from JSON file", len(configs))
+	for _, config := range configs {
+		jobFunc, exists := jobFunctions[config.ID]
+		if !exists {
+			logger.Log("Warning: No job function found for job ID", "id", config.ID)
+			continue
 		}
+
+		// Add the job function to the config
+		config.JobFunction = jobFunc
+
+		// Register the job
+		jobpro.RegisterJob(config)
 	}
 
 	if err := jobpro.LoadJobs(jobMgr); err != nil {
-		logger.LogErr(err, "Failed to load jobs")
+		logger.LogErr(err, "Failed to load jobs into job manager. Exiting...")
 		os.Exit(1)
 	}
 }

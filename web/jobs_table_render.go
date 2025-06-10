@@ -95,16 +95,16 @@ func renderJobsTableRows(b *element.Builder, jobs []jobpro.JobRun, resultCounts 
 					loadCount = remaining
 				}
 
-				b.Tr("class", fmt.Sprintf("load-more-row job-%s", lastJobID),
+				b.TrClass(fmt.Sprintf("load-more-row job-%s", lastJobID),
 					"data-job-id", lastJobID,
 					"style", "display: none;").R(
 					b.Td("colspan", "12", "style", "text-align: center; padding: 10px;").R(
-						b.Button("class", "btn btn-secondary load-more-btn",
+						b.ButtonClass("btn btn-secondary load-more-btn",
 							"data-job-id", lastJobID,
 							"data-offset", fmt.Sprintf("%d", displayedResults[lastJobID]),
 							"data-total", fmt.Sprintf("%d", total),
 							"onclick", "loadMoreResults(this)").F(
-							"Load %d more (showing %d of %d)",
+							"(%d / %d) <b>load more</b>",
 							loadCount,
 							displayedResults[lastJobID],
 							total,
@@ -364,13 +364,13 @@ func renderJobsTableRows(b *element.Builder, jobs []jobpro.JobRun, resultCounts 
 				"data-job-id", lastJobID,
 				"style", "display: none;").R(
 				b.Td("colspan", "6", "style", "text-align: center; padding: 10px;").R(
-					b.Button("class", "btn btn-secondary load-more-btn",
+					b.ButtonClass("btn btn-secondary load-more-btn",
 						"data-job-id", lastJobID,
 						"data-offset", fmt.Sprintf("%d", displayedResults[lastJobID]),
 						"data-total", fmt.Sprintf("%d", total),
 						"onclick", "loadMoreResults(this)").F(
-						"Load %d more (showing %d of %d)",
-						loadCount,
+						"(%d / %d) <b>load more</b>",
+						// loadCount,
 						displayedResults[lastJobID],
 						total,
 					),

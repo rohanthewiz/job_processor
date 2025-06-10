@@ -21,7 +21,7 @@
   },
   {
     "ID": "onetimeJob2",
-    "Name": "Manual Start Job",
+    "Name": "Manual Job",
     "IsPeriodic": false,
     "Schedule": "",
     "Priority": 0,

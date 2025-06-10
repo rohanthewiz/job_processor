@@ -87,7 +87,7 @@ func (b *Broker) publish(topic string, msg any) {
 		fmt.Printf("Publishing to topic: %s, channel: %v\n", topic, subs[i].ch)
 		fmt.Println("Current fails:", subs[i].consecFails)
 		if subs[i].consecFails > 3 { // Perhaps make this configurable
-			logger.F("Too many consecutive failures for topic: %s, channel: %v", topic, subs[i].ch)
+			logger.F("Dropping stale subscriber on topic: %s, channel: %v", topic, subs[i].ch)
 			b.unsubscribe(topic, subs[i])
 			break // unsubscribe changes the subs slice, so break to avoid issues
 		}

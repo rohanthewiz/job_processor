@@ -95,15 +95,15 @@ func StartWebServer(jobMgr *jobpro.DefaultJobManager) {
 
 		// Add a load more button if there are more results
 		if offset+len(results) < totalCount {
-			b.Tr("class", fmt.Sprintf("load-more-row job-%s", jobID), "style", "display: none;").R(
+			b.TrClass(fmt.Sprintf("load-more-row job-%s", jobID), "style", "display: none;").R(
 				b.Td("colspan", "12", "style", "text-align: center; padding: 10px;").R(
-					b.Button("class", "btn btn-secondary load-more-btn",
+					b.ButtonClass("btn btn-secondary load-more-btn",
 						"data-job-id", jobID,
 						"data-offset", fmt.Sprintf("%d", offset+10),
 						"data-total", fmt.Sprintf("%d", totalCount),
 						"onclick", "loadMoreResults(this)").F(
-						"Load %d more (showing %d of %d)",
-						min(10, totalCount-(offset+len(results))),
+						"(%d / %d) <b>load more</b>",
+						// min(10, totalCount-(offset+len(results))),
 						offset+len(results),
 						totalCount,
 					),
