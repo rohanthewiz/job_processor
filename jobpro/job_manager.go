@@ -267,30 +267,39 @@ func (m *DefaultJobManager) StartJob(id string) error {
 			}
 			m.cronEntries[id] = entryID
 		}
-	} else { // For one-time jobs, execute it on schedule
-		// Update status to scheduled for one-time jobs that haven't run yet
-		if jobDef.NextRunTime.After(time.Now()) {
-			if err := m.store.UpdateJobStatus(id, StatusScheduled); err != nil {
-				return serr.Wrap(err, "failed to update job status to scheduled")
+	} else { // For one-time jobs
+		// For manual start jobs (no schedule), execute immediately
+		if jobDef.Schedule == "" {
+			go m.executeJob(id)
+		} else {
+			// For scheduled one-time jobs, check if we need to schedule or execute
+			if jobDef.NextRunTime.After(time.Now()) {
+				// Update status to scheduled for future one-time jobs
+				if err := m.store.UpdateJobStatus(id, StatusScheduled); err != nil {
+					return serr.Wrap(err, "failed to update job status to scheduled")
+				}
+
+				// Schedule the job in a goroutine and store the timer
+				go func() {
+					timer := RunAt(jobDef.NextRunTime, func() {
+						// Remove the timer reference when the job starts
+						m.mu.Lock()
+						delete(m.scheduledJobs, id)
+						m.mu.Unlock()
+
+						m.executeJob(id)
+					})
+
+					// Store the timer reference
+					m.mu.Lock()
+					m.scheduledJobs[id] = timer
+					m.mu.Unlock()
+				}()
+			} else {
+				// If the scheduled time has passed, execute immediately
+				go m.executeJob(id)
 			}
 		}
-
-		// Schedule the job in a goroutine and store the timer
-		go func() {
-			timer := RunAt(jobDef.NextRunTime, func() {
-				// Remove the timer reference when the job starts
-				m.mu.Lock()
-				delete(m.scheduledJobs, id)
-				m.mu.Unlock()
-
-				m.executeJob(id)
-			})
-
-			// Store the timer reference
-			m.mu.Lock()
-			m.scheduledJobs[id] = timer
-			m.mu.Unlock()
-		}()
 	}
 
 	return nil

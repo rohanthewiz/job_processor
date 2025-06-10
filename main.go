@@ -62,7 +62,7 @@ func main() {
 		ID:         "onetimeJob2",
 		Name:       "Manual Start Job",
 		IsPeriodic: false,
-		Schedule:   "in 2m",
+		Schedule:   "",
 		AutoStart:  false, // This job won't start automatically
 		JobFunction: func() error {
 			fmt.Println("Manual start job doing work")

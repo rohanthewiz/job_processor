@@ -83,9 +83,8 @@ func setupJob(mgr JobMgr, jc JobConfig) error {
 	}
 	log.Printf("Load job: %v\n", jc)
 
-	// Start job automatically if AutoStart is true (default behavior when not set)
-	if jc.AutoStart || (!jc.IsPeriodic && jc.Schedule == "") {
-		// Always start periodic jobs and immediate one-time jobs
+	// Start job automatically if AutoStart is true
+	if jc.AutoStart {
 		if err := mgr.StartJob(jobID); err != nil {
 			logger.LogErr(serr.Wrap(err, "Failed to start job"))
 		}
