@@ -1,7 +1,10 @@
 package jobpro
 
 import (
+	"encoding/json"
+	"io"
 	"log"
+	"net/http"
 	"sync"
 
 	"github.com/rohanthewiz/logger"
@@ -60,6 +63,31 @@ func (jc *jobConfigs) getJobConfigs() []JobConfig {
 	jc.mu.RLock()
 	defer jc.mu.RUnlock()
 	return jc.jobCfgs
+}
+
+// FetchJobConfigs fetches job configurations from the specified endpoint
+func FetchJobConfigs(endpoint string) ([]JobConfig, error) {
+	resp, err := http.Get(endpoint)
+	if err != nil {
+		return nil, serr.Wrap(err, "Failed to fetch job configs")
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return nil, serr.New("Failed to fetch job configs", "status", resp.Status)
+	}
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, serr.Wrap(err, "Failed to read job configs response")
+	}
+
+	var configs []JobConfig
+	if err := json.Unmarshal(body, &configs); err != nil {
+		return nil, serr.Wrap(err, "Failed to parse job configs")
+	}
+
+	return configs, nil
 }
 
 func LoadJobs(mgr JobMgr) error {

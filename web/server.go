@@ -21,6 +21,9 @@ func StartWebServer(jobMgr *jobpro.DefaultJobManager) {
 
 	s.Use(rweb.RequestInfo)
 
+	// Serve static files from the artifacts directory
+	s.StaticFiles("/job/config/", "artifacts/config", 2)
+
 	s.Get("/", rootHandler)
 
 	s.Get("/jobs", func(ctx rweb.Context) error {
