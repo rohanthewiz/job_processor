@@ -21,6 +21,10 @@ var periodicJobRow string
 
 const jobEvent = "job-update"
 
+const barChartEmoji = `<svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg" style="vertical-align: middle;"><rect x="1" y="8" width="2" height="6" fill="currentColor"/><rect x="4" y="4" width="2" height="10" fill="currentColor"/><rect x="7" y="6" width="2" height="8" fill="currentColor"/><rect x="10" y="2" width="2" height="12" fill="currentColor"/><rect x="13" y="10" width="2" height="4" fill="currentColor"/></svg>`
+
+const stopWatchEmoji = `<svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg" style="vertical-align: middle;"><circle cx="8" cy="9" r="6" stroke="currentColor" stroke-width="1.5" fill="none"/><path d="M8 6v3l2 2" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/><rect x="6" y="1" width="4" height="2" rx="1" fill="currentColor"/><circle cx="8" cy="9" r="1" fill="currentColor"/></svg>`
+
 // renderJobsTable renders the full jobs table page
 func renderJobsTable(jobs []jobpro.JobRun, resultCounts map[string]int) string {
 	b := element.NewBuilder()
@@ -43,7 +47,7 @@ func renderJobsTable(jobs []jobpro.JobRun, resultCounts map[string]int) string {
 		b.Body().R(
 			// Add SSE source connection to the body
 			b.DivClass("container").R(
-				b.H1().T("Jobs"),
+				b.H1Class("table-title").T("JOBS"),
 				b.DivClass("table-responsive").R(
 					b.Table().R(
 						b.THead().R(
@@ -95,16 +99,16 @@ func renderJobsTableRows(b *element.Builder, jobs []jobpro.JobRun, resultCounts 
 					loadCount = remaining
 				}
 
-				b.Tr("class", fmt.Sprintf("load-more-row job-%s", lastJobID),
+				b.TrClass(fmt.Sprintf("load-more-row job-%s", lastJobID),
 					"data-job-id", lastJobID,
 					"style", "display: none;").R(
 					b.Td("colspan", "12", "style", "text-align: center; padding: 10px;").R(
-						b.Button("class", "btn btn-secondary load-more-btn",
+						b.ButtonClass("btn btn-secondary load-more-btn",
 							"data-job-id", lastJobID,
 							"data-offset", fmt.Sprintf("%d", displayedResults[lastJobID]),
 							"data-total", fmt.Sprintf("%d", total),
 							"onclick", "loadMoreResults(this)").F(
-							"Load %d more (showing %d of %d)",
+							"(%d / %d) <b>load more</b>",
 							loadCount,
 							displayedResults[lastJobID],
 							total,
@@ -272,24 +276,24 @@ func renderJobsTableRows(b *element.Builder, jobs []jobpro.JobRun, resultCounts 
 											const lastRun = data[0]; // Most recent
 											const lastRunTime = new Date(lastRun.StartTime);
 											const timeSince = getTimeSince(lastRunTime);
-											const lastRunStatus = lastRun.Status === 'complete' ? '✓' : '✗';
+											const lastRunStatus = lastRun.Status === 'complete' ? '&#10003;' : '&#10007;';
 											const lastRunClass = lastRun.Status === 'complete' ? 'success' : 'error';
 											
 											// Create summary HTML
 											const summaryHTML = 
 												'<div class="summary-stats" style="display: flex; flex-direction: row; gap: 1.5rem; width: 100%;">' +
 												'<div class="stat" style="display: flex; align-items: center; gap: 0.4rem;">' +
-												'<span class="stat-icon">📊</span>' +
+												'<span class="stat-icon">` + barChartEmoji + `</span>' +
 												'<span class="stat-value">' + totalRuns + '</span>' +
 												'<span class="stat-label">' + (totalRuns === 1 ? 'run' : 'runs') + '</span>' +
 												'</div>' +
 												'<div class="stat" style="display: flex; align-items: center; gap: 0.4rem;">' +
-												'<span class="stat-icon ' + (successRate >= 80 ? 'success' : successRate >= 50 ? 'warning' : 'error') + '">✓</span>' +
+												'<span class="stat-icon ' + (successRate >= 80 ? 'success' : successRate >= 50 ? 'warning' : 'error') + '">&#10003;</span>' +
 												'<span class="stat-value">' + successRate + '%</span>' +
 												'<span class="stat-label">success</span>' +
 												'</div>' +
 												'<div class="stat" style="display: flex; align-items: center; gap: 0.4rem;">' +
-												'<span class="stat-icon">⏱</span>' +
+												'<span class="stat-icon">` + stopWatchEmoji + `</span>' +
 												'<span class="stat-value">' + avgDuration.toFixed(1) + 'ms</span>' +
 												'<span class="stat-label">avg</span>' +
 												'</div>' +
@@ -364,13 +368,13 @@ func renderJobsTableRows(b *element.Builder, jobs []jobpro.JobRun, resultCounts 
 				"data-job-id", lastJobID,
 				"style", "display: none;").R(
 				b.Td("colspan", "6", "style", "text-align: center; padding: 10px;").R(
-					b.Button("class", "btn btn-secondary load-more-btn",
+					b.ButtonClass("btn btn-secondary load-more-btn",
 						"data-job-id", lastJobID,
 						"data-offset", fmt.Sprintf("%d", displayedResults[lastJobID]),
 						"data-total", fmt.Sprintf("%d", total),
 						"onclick", "loadMoreResults(this)").F(
-						"Load %d more (showing %d of %d)",
-						loadCount,
+						"(%d / %d) <b>load more</b>",
+						// loadCount,
 						displayedResults[lastJobID],
 						total,
 					),

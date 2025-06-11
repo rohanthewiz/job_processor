@@ -1,0 +1,32 @@
+[
+  {
+    "ID": "periodicJob1",
+    "Name": "Periodic Job 1",
+    "IsPeriodic": true,
+    "Schedule": "*/14 * * * * *",
+    "Priority": 0,
+    "MaxRunTime": 0,
+    "RetryCount": 0,
+    "AutoStart": true
+  },
+  {
+    "ID": "onetimeJob1",
+    "Name": "Onetime Job 1",
+    "IsPeriodic": false,
+    "Schedule": "in 30s",
+    "Priority": 0,
+    "MaxRunTime": 0,
+    "RetryCount": 0,
+    "AutoStart": true
+  },
+  {
+    "ID": "onetimeJob2",
+    "Name": "Manual Job",
+    "IsPeriodic": false,
+    "Schedule": "",
+    "Priority": 0,
+    "MaxRunTime": 0,
+    "RetryCount": 0,
+    "AutoStart": false
+  }
+]
