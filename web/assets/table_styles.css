@@ -18,10 +18,17 @@ body {
     padding: 20px;
 }
 
-h1 {
-    color: #2E454B;
-    margin-bottom: 1.5rem;
-    font-weight: 600;
+h1.table-title {
+    font-size: 1.3rem;
+    color: #1a202c;
+    text-align: center;
+    margin-top: 0;
+    margin-bottom: 0.9rem;
+    font-weight: 500;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    padding-bottom: 0.5rem;
+    text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.1);
 }
 
 .container {
@@ -219,6 +226,30 @@ tr:hover {
     color: #bd2130;
 }
 
+/* Load more button styles */
+.load-more-btn {
+    padding: 0.5rem 1.2rem;
+    border-radius: 20px;
+    background-color: rgba(220, 230, 230, 0.7);
+    border: 1px solid var(--border-color);
+    transition: all 0.2s ease;
+    font-size: 0.9rem;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+    margin: 0.5rem 0;
+}
+
+.load-more-btn:hover {
+    background-color: rgba(220, 230, 230, 0.9);
+    box-shadow: 0 3px 6px rgba(0, 0, 0, 0.1);
+    transform: translateY(-1px);
+}
+
+.load-more-btn:active {
+    background-color: rgba(200, 210, 210, 0.9);
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+    transform: translateY(1px);
+}
+
 /* Tooltip styles */
 .tooltip {
     position: relative;
@@ -369,15 +400,15 @@ td[colspan="5"] {
         gap: 0.8rem;
         font-size: 0.8rem;
     }
-    
+
     .stat {
         gap: 0.2rem;
     }
-    
+
     .stat-icon {
         font-size: 0.9rem;
     }
-    
+
     .stat-value {
         font-size: 0.8rem;
     }
