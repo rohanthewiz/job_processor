@@ -26,6 +26,26 @@ func StartWebServer(jobMgr *jobpro.DefaultJobManager) {
 
 	s.Get("/", rootHandler)
 
+	s.Get("/other-page", otherPageHandler)
+
+	// Add Element / HTML Debug endpoints
+	// Set debug mode, then go to the page you want to check, refresh it,
+	// then go to /debug/show to see any issues
+	s.Get("/debug/set", func(c rweb.Context) error {
+		element.DebugSet()
+		return c.WriteHTML("<h3>Debug mode set.</h3> <a href='/'>Home</a>")
+	})
+
+	s.Get("/debug/show", func(c rweb.Context) error {
+		err := c.WriteHTML(element.DebugShow())
+		return err
+	})
+
+	s.Get("/debug/clear", func(c rweb.Context) error {
+		element.DebugClear()
+		return c.WriteHTML("<h3>Debug mode is off.</h3> <a href='/'>Home</a>")
+	})
+
 	s.Get("/jobs", func(ctx rweb.Context) error {
 		jobs, resultCounts, err := jobMgr.ListJobsWithPagination(10)
 		if err != nil {
