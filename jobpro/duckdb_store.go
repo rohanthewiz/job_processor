@@ -344,7 +344,11 @@ func (s *DuckDBStore) GetJobRunsWithPagination(resultsPerJob int) ([]JobRun, map
 	),
 	job_main_rows AS (
 		SELECT j.job_id, j.job_name, 
-			   CASE WHEN j.schedule IS NULL OR j.schedule = '' THEN 'one-time' ELSE j.schedule END as frequency,
+			   CASE 
+			       WHEN j.schedule_type = 'onetime' AND (j.schedule IS NULL OR j.schedule = '') THEN 'manual'
+			       WHEN j.schedule IS NULL OR j.schedule = '' THEN 'one-time' 
+			       ELSE j.schedule 
+			   END as frequency,
 			   j.schedule, j.next_run_time, j.status, j.schedule_type, j.created_at, j.updated_at,
 			   NULL::BIGINT as result_id, NULL::TIMESTAMP as start_time, NULL::BIGINT as duration_micro, 
 			   NULL::VARCHAR as result_status, NULL::VARCHAR as error_msg,
@@ -486,7 +490,12 @@ create temp table runs as (with results as (
                r.result_id, r.start_time, r.duration_micro, r.status result_status, r.error_msg
        from results r join jobs j on r.job_id = j.job_id
        union all
-       select j.job_id, j.job_name, case when j.schedule is null or j.schedule = '' then 'one-time' else j.schedule end as frequency, 
+       select j.job_id, j.job_name, 
+              case 
+                  when j.schedule_type = 'onetime' and (j.schedule is null or j.schedule = '') then 'manual' 
+                  when j.schedule is null or j.schedule = '' then 'one-time' 
+                  else j.schedule 
+              end as frequency, 
               j.schedule, j.next_run_time, j.status,
               j.schedule_type, j.created_at, j.updated_at,
                null as result_id, null as start_time, null as duration_micro, null as result_status, null as error_msg
