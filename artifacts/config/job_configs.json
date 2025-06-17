@@ -30,7 +30,7 @@
     "AutoStart": true
   },
   {
-    "ID": "onetimeJob2",
+    "ID": "manualJob",
     "Name": "Manual Job",
     "IsPeriodic": false,
     "Schedule": "",

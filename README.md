@@ -83,7 +83,7 @@ jobpro.RegisterJob(jobpro.JobConfig{
 
 // Using absolute time with timezone
 jobpro.RegisterJob(jobpro.JobConfig{
-	ID:         "onetimeJob2",
+	ID:         "manualJob",
 	Name:       "Onetime Job 2",
 	IsPeriodic: false,
 	Schedule:   "2024-12-25 09:00:00 EST",

@@ -68,13 +68,13 @@ func registerJobs(jobMgr *jobpro.DefaultJobManager) {
 		},
 		"periodicJob2": func() error {
 			fmt.Println("Periodic job2 attempting work...")
-			return serr.New("Testing error return here")
+			return serr.New("Testing error return")
 		},
 		"onetimeJob1": func() error {
 			fmt.Println("One time job doing work")
 			return nil
 		},
-		"onetimeJob2": func() error {
+		"manualJob": func() error {
 			fmt.Println("Manual start job doing work")
 			return nil
 		},
@@ -105,12 +105,12 @@ func registerJobs(jobMgr *jobpro.DefaultJobManager) {
 		// })
 		//
 		// jobpro.RegisterJob(jobpro.JobConfig{
-		// 	ID:          "onetimeJob2",
+		// 	ID:          "manualJob",
 		// 	Name:        "Manual Start Job",
 		// 	IsPeriodic:  false,
 		// 	Schedule:    "",
 		// 	AutoStart:   false, // This job won't start automatically
-		// 	JobFunction: jobFunctions["onetimeJob2"],
+		// 	JobFunction: jobFunctions["manualJob"],
 		// })
 	}
 
