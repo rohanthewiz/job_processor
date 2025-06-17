@@ -5,6 +5,9 @@ import (
 	"fmt"
 	"job_processor/util"
 	"time"
+
+	"github.com/rohanthewiz/logger"
+	"github.com/rohanthewiz/serr"
 )
 
 // ScheduledJob is a job that logs messages at possibly multiple intervals
@@ -53,6 +56,11 @@ func (j *ScheduledJob) scheduledRun(ctx context.Context) (results string, err er
 		// Execute once
 		fmt.Printf("Running %s job: %s\n", jobTypeName, j.name)
 		err = j.Call()
+		if err != nil {
+			ser := serr.Wrap(err)
+			logger.LogErr(ser, "Error executing %s job", j.name)
+			return results, ser
+		}
 
 		return fmt.Sprintf("%s job %s, completed", jobTypeName, j.name), nil
 	}

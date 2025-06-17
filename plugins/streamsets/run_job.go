@@ -1,4 +1,4 @@
-package main
+package streamsets
 
 import (
 	"fmt"
@@ -9,7 +9,7 @@ import (
 
 // Configuration constants
 const (
-	JobName                        = "CarInfo" // Replace with your actual job name
+	JobName                        = "CarInfx" // Replace with your actual job name
 	PollingFrequencySeconds        = 10
 	MaxWaitSecondsForJobToBeActive = 120
 	MaxWaitSecondsForJobCompletion = 300
@@ -19,23 +19,24 @@ const (
 
 // Runtime parameters for the job
 var RuntimeParameters = map[string]string{
-	"p_query_interval": "15",
+	// "p_query_interval": "15",
 }
 
-func main() {
-	logger.Info("Starting StreamSets Pipeline Trigger")
+/*func main() {
+	logger.Info("Starting StreamSets Job")
 
 	// Run the pipeline
-	if err := RunPipeline(); err != nil {
+	if err := RunJob(); err != nil {
 		logger.LogErr(err)
 		return // serr.Wrap(err, "Failed to trigger StreamSets pipeline")
 	}
 
 	logger.Info("StreamSets Job completed successfully")
 }
+*/
 
-// RunPipeline executes the complete pipeline trigger and monitoring flow
-func RunPipeline() error {
+// RunJob executes the complete pipeline trigger and monitoring flow
+func RunJob() error {
 	// Initialize client
 	client, err := NewStreamSetsClient()
 	if err != nil {

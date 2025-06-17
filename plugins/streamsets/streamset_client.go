@@ -1,4 +1,4 @@
-package main
+package streamsets
 
 import (
 	"bytes"
@@ -48,19 +48,19 @@ type StreamSetsClient struct {
 
 // NewStreamSetsClient creates a new client instance
 func NewStreamSetsClient() (*StreamSetsClient, error) {
-	credID := os.Getenv("CRED_ID")
+	credID := os.Getenv("SS_CRED_ID")
 	if credID == "" {
 		credID = "myId" // Default value for testing
 	}
 
-	token := os.Getenv("CRED_TOKEN")
+	token := os.Getenv("SS_CRED_TOKEN")
 	if token == "" {
 		token = "MyToken" // Default value for testing
 	}
 
 	// Validate credentials
 	if credID == "myId" || token == "MyToken" {
-		logger.Warn("Using default credentials - ensure CRED_ID and CRED_TOKEN environment variables are set for production")
+		logger.Warn("Using default credentials - ensure SS_CRED_ID and SS_CRED_TOKEN environment variables are set")
 	}
 
 	return &StreamSetsClient{

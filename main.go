@@ -5,6 +5,7 @@ package main
 import (
 	"fmt"
 	"job_processor/jobpro"
+	"job_processor/plugins/streamsets"
 	"job_processor/pubsub"
 	"job_processor/shutdown"
 	"job_processor/web"
@@ -48,6 +49,15 @@ func main() {
 // hardcoded configurations if the fetch fails. Each job is mapped to its
 // corresponding function and registered with the job manager.
 func registerJobs(jobMgr *jobpro.DefaultJobManager) {
+	jobpro.RegisterJob(jobpro.JobConfig{
+		ID:          "SS-API-Job",
+		Name:        "Streamsets API Job",
+		IsPeriodic:  true,
+		Schedule:    "*/30 * * * * *",
+		AutoStart:   true,
+		JobFunction: streamsets.RunJob,
+	})
+
 	// Define what functions each job should run.
 	// This is for demo purposes -- for app we could call a local or endpoint to do some work
 	jobFunctions := map[string]func() error{
