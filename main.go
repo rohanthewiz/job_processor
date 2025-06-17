@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/rohanthewiz/logger"
+	"github.com/rohanthewiz/serr"
 )
 
 func main() {
@@ -48,18 +49,32 @@ func main() {
 // hardcoded configurations if the fetch fails. Each job is mapped to its
 // corresponding function and registered with the job manager.
 func registerJobs(jobMgr *jobpro.DefaultJobManager) {
+	// Testing LifeCycle of Streamsets job
+	// jobpro.RegisterJob(jobpro.JobConfig{
+	// 	ID:          "SS-API-Job",
+	// 	Name:        "Streamsets API Job",
+	// 	IsPeriodic:  true,
+	// 	Schedule:    "*/30 * * * * *",
+	// 	AutoStart:   true,
+	// 	JobFunction: streamsets.RunJob,
+	// })
+
 	// Define what functions each job should run.
 	// This is for demo purposes -- for app we could call a local or endpoint to do some work
 	jobFunctions := map[string]func() error{
 		"periodicJob1": func() error {
-			fmt.Println("Periodic job doing work")
+			fmt.Println("Periodic job1 doing work")
 			return nil
+		},
+		"periodicJob2": func() error {
+			fmt.Println("Periodic job2 attempting work...")
+			return serr.New("Testing error return")
 		},
 		"onetimeJob1": func() error {
 			fmt.Println("One time job doing work")
 			return nil
 		},
-		"onetimeJob2": func() error {
+		"manualJob": func() error {
 			fmt.Println("Manual start job doing work")
 			return nil
 		},
@@ -90,12 +105,12 @@ func registerJobs(jobMgr *jobpro.DefaultJobManager) {
 		// })
 		//
 		// jobpro.RegisterJob(jobpro.JobConfig{
-		// 	ID:          "onetimeJob2",
+		// 	ID:          "manualJob",
 		// 	Name:        "Manual Start Job",
 		// 	IsPeriodic:  false,
 		// 	Schedule:    "",
 		// 	AutoStart:   false, // This job won't start automatically
-		// 	JobFunction: jobFunctions["onetimeJob2"],
+		// 	JobFunction: jobFunctions["manualJob"],
 		// })
 	}
 
