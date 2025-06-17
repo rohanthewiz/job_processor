@@ -10,6 +10,16 @@
     "AutoStart": true
   },
   {
+    "ID": "periodicJob2",
+    "Name": "Periodic Job 2",
+    "IsPeriodic": true,
+    "Schedule": "*/20 * * * * *",
+    "Priority": 0,
+    "MaxRunTime": 0,
+    "RetryCount": 0,
+    "AutoStart": true
+  },
+  {
     "ID": "onetimeJob1",
     "Name": "Onetime Job 1",
     "IsPeriodic": false,
