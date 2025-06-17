@@ -241,8 +241,7 @@ func renderJobsTableRows(b *element.Builder, jobs []jobpro.JobRun, resultCounts 
 									b.Canvas("id", "chart-"+job.JobID, "style", "display: block; max-height: 60px;").T(""),
 								),
 								// Script to fetch and render chart data
-								b.Script().T(`var jobID = '`+job.JobID+`';`,
-									periodicJobRow),
+								b.Script().T(`(function(jobID) {`+periodicJobRow+`})('`+job.JobID+`');`),
 							),
 						)
 					} else {

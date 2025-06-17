@@ -7,6 +7,7 @@
 									fetch('/jobs/history/'+jobID)
 										.then(response => response.json())
 										.then(data => {
+											console.log('Job history for', jobID, ':', data);
 											if (!data || data.length === 0) {
 												canvas.style.display = 'none';
 												const successRateContainer = document.getElementById('success-rate-'+jobID);
@@ -24,10 +25,11 @@
 											const successRateContainer = document.getElementById('success-rate-'+jobID);
 											if (successRateContainer) {
 												const rateColor = successRate >= 80 ? '#4ade80' : successRate >= 50 ? '#fbbf24' : '#ef4444';
+												const rateLabel = successRate >= 80 ? 'success' : successRate >= 50 ? 'warning' : 'failing';
 												successRateContainer.innerHTML =
 													'<div style="text-align: center;">' +
 													'<div style="font-size: 1.1em; font-weight: bold; color: ' + rateColor + ';">' + successRate + '%</div>' +
-													'<div style="font-size: 0.8em; color: #666;">success</div>' +
+													'<div style="font-size: 0.8em; color: #666;">' + rateLabel + '</div>' +
 													'</div>';
 											}
 
@@ -84,7 +86,11 @@
 											});
 										})
 										.catch(error => {
-											console.error('Error fetching job history:', error);
+											console.error('Error fetching job history for job', jobID, ':', error);
 											canvas.style.display = 'none';
+											const successRateContainer = document.getElementById('success-rate-'+jobID);
+											if (successRateContainer) {
+												successRateContainer.innerHTML = '<span style="color: #ff0000;">Error</span>';
+											}
 										});
 								})();
