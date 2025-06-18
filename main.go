@@ -85,7 +85,7 @@ func registerJobs(jobMgr *jobpro.DefaultJobManager) {
 	if err != nil {
 		logger.LogErr(err, "Failed to fetch job configs, exiting..")
 		os.Exit(1)
-		// // Fallback to hardcoded configs
+		// Hardcoded configs
 		// jobpro.RegisterJob(jobpro.JobConfig{
 		// 	ID:          "periodicJob1",
 		// 	Name:        "Periodic Job 1",
