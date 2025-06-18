@@ -110,7 +110,6 @@ func renderJobsTableRows(b *element.Builder, jobs []jobpro.JobRun, resultCounts 
 							"onclick", "loadMoreResults(this)").F(
 							"(%d / %d) <b>load more</b>",
 							loadCount,
-							displayedResults[lastJobID],
 							total,
 						),
 					),
