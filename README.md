@@ -31,8 +31,8 @@ A lightweight, flexible job scheduling and processing system written in Go.
 go get github.com/rohanthewiz/jobprocessor
 ```
 
-### Basic Usage
-See `main.go` for a complete example.
+### Usage
+**See `main.go` for a complete example**.
 
 ### Registering Jobs
 
