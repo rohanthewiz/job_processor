@@ -11,6 +11,8 @@ A lightweight, flexible job scheduling and processing system written in Go.
 - **Graceful Shutdown**: Clean handling of shutdown signals
 - **Error Handling**: Structured error system
 
+![Screenshot 2025-06-17 at 6 36 08 PM](https://github.com/user-attachments/assets/0b5d7d04-0755-4463-b1fe-3ccd56a513a2)
+
 ## Core Components
 
 - **JobManager**: Handles job lifecycle and scheduling
