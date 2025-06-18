@@ -9,7 +9,7 @@ import (
 
 // Configuration constants
 const (
-	JobName                        = "CarInfx" // Replace with your actual job name
+	JobName                        = "CarInfo" // Replace with your actual job name
 	PollingFrequencySeconds        = 10
 	MaxWaitSecondsForJobToBeActive = 120
 	MaxWaitSecondsForJobCompletion = 300
