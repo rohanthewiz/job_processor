@@ -18,7 +18,7 @@ type DuckDBStore struct {
 // NewDuckDBStore creates a new DuckDB-backed job store
 func NewDuckDBStore(dbPath string) (*DuckDBStore, error) {
 	fmt.Printf("Job Store DB Path: %s\n",
-		util.Tern(dbPath == "", "(in-memory)", dbPath))
+		util.If(dbPath == "", "(in-memory)", dbPath))
 
 	db, err := sql.Open("duckdb", dbPath)
 	if err != nil {
@@ -313,7 +313,7 @@ type JobRunDBRow struct {
 func (s *DuckDBStore) GetJobRunsWithPagination(resultsPerJob int) ([]JobRun, map[string]int, error) {
 	// Map to store total result count per job
 	resultCounts := make(map[string]int)
-	
+
 	// Get total count of results per job
 	countRows, err := s.db.Query(`
 		SELECT job_id, COUNT(*) as total_count 
@@ -324,7 +324,7 @@ func (s *DuckDBStore) GetJobRunsWithPagination(resultsPerJob int) ([]JobRun, map
 		return nil, nil, fmt.Errorf("failed to get result counts: %w", err)
 	}
 	defer countRows.Close()
-	
+
 	for countRows.Next() {
 		var jobID string
 		var count int
@@ -393,7 +393,7 @@ func (s *DuckDBStore) GetJobRunsWithPagination(resultsPerJob int) ([]JobRun, map
 	defer rows.Close()
 
 	results := make([]JobRun, 0, 32)
-	
+
 	for rows.Next() {
 		var result JobRunDBRow
 		var durationMicro sql.NullInt64
@@ -431,7 +431,6 @@ func (s *DuckDBStore) GetJobRunsWithPagination(resultsPerJob int) ([]JobRun, map
 
 		results = append(results, jr)
 	}
-
 
 	return results, resultCounts, nil
 }

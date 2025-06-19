@@ -1,11 +1,12 @@
 package util
 
-// Tern implements a generic ternary operator
-// T is constrained to any type, making this function work with any comparable type
-// The function evaluates the condition and returns trueReturn if true, falseReturn if false
-func Tern[T any](condition bool, trueReturn T, falseReturn T) T {
+// If implements a generic ternary operator, providing the functionality of a conditional operator
+// found in many other languages (condition ? trueValue : falseValue).
+// T can be any type - the values are returned based on the boolean condition.
+// Returns ifTrue when true, otherwise returns ifFalse.
+func If[T any](condition bool, ifTrue T, ifFalse T) T {
 	if condition {
-		return trueReturn
+		return ifTrue
 	}
-	return falseReturn
+	return ifFalse
 }

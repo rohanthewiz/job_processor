@@ -22,7 +22,7 @@ func NewScheduledJob(jc JobConfig) *ScheduledJob {
 		BaseJob: BaseJob{
 			id:          jc.ID,
 			name:        jc.Name,
-			freqType:    util.Tern(jc.IsPeriodic, Periodic, OneTime),
+			freqType:    util.If(jc.IsPeriodic, Periodic, OneTime),
 			maxWorkTime: time.Duration(jc.MaxRunTime) * time.Second,
 		},
 		Call: jc.JobFunction,
@@ -36,7 +36,7 @@ func NewScheduledJob(jc JobConfig) *ScheduledJob {
 
 // scheduledRun is the work function for ScheduledJob overriding the base job's Run
 func (j *ScheduledJob) scheduledRun(ctx context.Context) (results string, err error) {
-	jobTypeName := util.Tern(j.freqType == Periodic, "Periodic", "Onetime")
+	jobTypeName := util.If(j.freqType == Periodic, "Periodic", "Onetime")
 
 	// Create a timer for the job duration only if maxWorkTime > 0
 	var timer *time.Timer
