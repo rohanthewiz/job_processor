@@ -19,6 +19,9 @@ var tableRows string
 //go:embed assets/periodic_job_row.js
 var periodicJobRow string
 
+//go:embed assets/time_tooltip.js
+var timeTooltip string
+
 const jobEvent = "job-update"
 
 const barChartEmoji = `<svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg" style="vertical-align: middle;"><rect x="1" y="8" width="2" height="6" fill="currentColor"/><rect x="4" y="4" width="2" height="10" fill="currentColor"/><rect x="7" y="6" width="2" height="8" fill="currentColor"/><rect x="10" y="2" width="2" height="12" fill="currentColor"/><rect x="13" y="10" width="2" height="4" fill="currentColor"/></svg>`
@@ -43,6 +46,8 @@ func renderJobsTable(jobs []jobpro.JobRun, resultCounts map[string]int) string {
 			b.T(`<script src="https://unpkg.com/htmx-ext-sse@2.2.2"></script>`),
 			// Add Chart.js for mini charts
 			b.T(`<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>`),
+			// Add time tooltip functionality
+			b.Script().T(timeTooltip),
 		),
 		b.Body().R(
 			// Add SSE source connection to the body
@@ -217,8 +222,8 @@ func renderJobsTableRows(b *element.Builder, jobs []jobpro.JobRun, resultCounts 
 					b.Td().R(
 						b.SpanClass(statusClass).T(job.JobStatus),
 					)
-					b.TdClass("timestamp").T(job.CreatedAt.Format("2006-01-02 15:04 MST"))
-					b.TdClass("timestamp").T(job.UpdatedAt.Format("2006-01-02 15:04 MST"))
+					b.TdClass("timestamp").T(job.CreatedAt.UTC().Format("2006-01-02 15:04 MST"))
+					b.TdClass("timestamp").T(job.UpdatedAt.UTC().Format("2006-01-02 15:04 MST"))
 
 				} else { // no need to display job level things for each run
 					b.Td().T("")
@@ -343,7 +348,7 @@ func renderJobsTableRows(b *element.Builder, jobs []jobpro.JobRun, resultCounts 
 
 				} else { // run level things
 					b.Td().F("#%d", job.RunNumber)
-					b.TdClass("timestamp").T(job.StartTime.Format("2006-01-02 15:04 MST"))
+					b.TdClass("timestamp").T(job.StartTime.UTC().Format("2006-01-02 15:04 MST"))
 					b.Td().F("%0.1f ms", float64(job.Duration.Microseconds())/1000)
 					b.Td().T(job.ResultStatus)
 					b.Td().T(job.ErrorMsg)

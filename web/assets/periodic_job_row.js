@@ -14,7 +14,25 @@
 									fetch('/jobs/history/' + jobID)
 										.then(response => response.json())
 										.then(data => {
-											if (!data || data.length === 0) {
+											// Check if the response is an error object
+											if (data && data.error) {
+												console.error('Error from server:', data.error);
+												if (successRateContainer) {
+													successRateContainer.innerHTML = '<span style="color: #ef4444;">Error</span>';
+												}
+												return;
+											}
+											
+											// Check if data is not an array
+											if (!Array.isArray(data)) {
+												console.error('Expected array but got:', typeof data, data);
+												if (successRateContainer) {
+													successRateContainer.innerHTML = '<span style="color: #ef4444;">Invalid data</span>';
+												}
+												return;
+											}
+											
+											if (data.length === 0) {
 												if (successRateContainer) {
 													successRateContainer.innerHTML = '<span style="color: #666;">No data</span>';
 												}
