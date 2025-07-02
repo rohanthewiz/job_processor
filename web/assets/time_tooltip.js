@@ -1,10 +1,11 @@
-// Time tooltip functionality
+// Time tooltip functionality with event delegation
 (function() {
     'use strict';
     
     let tooltip;
+    let currentTarget = null;
     
-    // Initialize tooltip when DOM is ready
+    // Initialize tooltip element
     function initializeTooltip() {
         if (tooltip) return; // Already initialized
         
@@ -72,15 +73,16 @@
         };
     }
     
-    // Show tooltip
-    function showTooltip(e) {
-        if (!tooltip) return; // Tooltip not initialized yet
+    // Show tooltip for the given element
+    function showTooltipForElement(element) {
+        if (!tooltip || !element) return;
         
-        const target = e.currentTarget;
-        const utcTime = target.textContent.trim();
+        const utcTime = element.textContent.trim();
         const localTime = convertToLocalTime(utcTime);
         
         if (!localTime) return;
+        
+        currentTarget = element;
         
         tooltip.innerHTML = `
             <div style="margin-bottom: 4px;"><strong>UTC:</strong> ${localTime.utc}</div>
@@ -88,7 +90,7 @@
             <div style="font-size: 12px; opacity: 0.8; margin-top: 4px;">Timezone: ${localTime.timezone}</div>
         `;
         
-        const rect = target.getBoundingClientRect();
+        const rect = element.getBoundingClientRect();
         const tooltipHeight = 80; // Approximate height
         
         // Position tooltip above the element
@@ -113,70 +115,57 @@
     function hideTooltip() {
         if (tooltip) {
             tooltip.style.display = 'none';
+            currentTarget = null;
         }
     }
     
-    // Initialize tooltips for existing elements
-    function initTooltips() {
-        initializeTooltip(); // Ensure tooltip is created
-        
-        const timestamps = document.querySelectorAll('.timestamp');
-        console.log('Initializing tooltips for', timestamps.length, 'timestamp elements');
-        
-        timestamps.forEach(elem => {
-            elem.removeEventListener('mouseenter', showTooltip);
-            elem.removeEventListener('mouseleave', hideTooltip);
-            elem.addEventListener('mouseenter', showTooltip);
-            elem.addEventListener('mouseleave', hideTooltip);
-            elem.style.cursor = 'help';
-        });
+    // Handle mouse events using event delegation
+    function handleMouseEnter(e) {
+        const timestamp = e.target.closest('.timestamp');
+        if (timestamp) {
+            showTooltipForElement(timestamp);
+        }
     }
     
-    // Initialize on DOM ready
+    function handleMouseLeave(e) {
+        const timestamp = e.target.closest('.timestamp');
+        if (timestamp && timestamp === currentTarget) {
+            hideTooltip();
+        }
+    }
+    
+    // Setup event delegation on document body
+    function setupEventDelegation() {
+        // Use event delegation on document body to catch all timestamp elements
+        document.body.addEventListener('mouseenter', handleMouseEnter, true);
+        document.body.addEventListener('mouseleave', handleMouseLeave, true);
+        
+        // Style all timestamp elements
+        const style = document.createElement('style');
+        style.textContent = '.timestamp { cursor: help; }';
+        document.head.appendChild(style);
+        
+        console.log('Time tooltip event delegation setup complete');
+    }
+    
+    // Initialize when DOM is ready
     if (document.readyState === 'loading') {
         document.addEventListener('DOMContentLoaded', function() {
-            initTooltips();
-            setupEventListeners();
+            initializeTooltip();
+            setupEventDelegation();
         });
     } else {
-        initTooltips();
-        setupEventListeners();
+        initializeTooltip();
+        setupEventDelegation();
     }
     
-    function setupEventListeners() {
-        // Re-initialize when HTMX updates content
-        document.body.addEventListener('htmx:afterSwap', function(event) {
-            console.log('HTMX afterSwap event fired', event.detail);
-            setTimeout(initTooltips, 100);
-        });
-        
-        // Also listen for the afterSettle event which fires after htmx has settled
-        document.body.addEventListener('htmx:afterSettle', function(event) {
-            console.log('HTMX afterSettle event fired', event.detail);
-            setTimeout(initTooltips, 100);
-        });
-        
-        // Also listen for the SSE events that might update the table
-        document.body.addEventListener('htmx:sseMessage', function(event) {
-            console.log('HTMX SSE message received', event.detail);
-            setTimeout(initTooltips, 100);
-        });
-        
-        // Direct observation of the jobs table body
-        setTimeout(function() {
-            const jobsTableBody = document.getElementById('jobs-table-body');
-            if (jobsTableBody) {
-                console.log('Found jobs-table-body, observing for changes');
-                const tableObserver = new MutationObserver(function(mutations) {
-                    console.log('Jobs table body mutated');
-                    setTimeout(initTooltips, 100);
-                });
-                
-                tableObserver.observe(jobsTableBody, {
-                    childList: true,
-                    subtree: true
-                });
-            }
-        }, 500);
-    }
+    // Export for debugging
+    window.timeTooltipDebug = {
+        tooltip: () => tooltip,
+        currentTarget: () => currentTarget,
+        reinit: () => {
+            initializeTooltip();
+            setupEventDelegation();
+        }
+    };
 })();
