@@ -3,6 +3,7 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
 	"job_processor/jobpro"
 	"job_processor/pubsub"
@@ -30,24 +31,22 @@ func main() {
 		logger.LogErr(err, "Failed to setup listener for job updates")
 	}
 
-	// Start web server before registering jobs so the endpoint is available
+	// Start the frontend
 	go web.StartWebServer(jobMgr)
 
-	// Give the web server a moment to start
-	time.Sleep(500 * time.Millisecond)
+	// Give the backend server a moment to start
+	logger.Info("Giving the backend server a head start...")
+	time.Sleep(10 * time.Second)
 
-	// Fetch jobs
-
-	registerJobs(jobMgr)
+	// Fetch and Register jobs
+	registerJobs(jobMgr, getJobsFromBackend())
 
 	// Block until done signal
 	<-done
 	fmt.Println("App exited")
 }
 
-// registerJobs configures and registers job definitions with the job manager.
-// It attempts to load job configurations from an HTTP endpoint "/jobs/definitions" of the secondary container
-func registerJobs(jobMgr *jobpro.DefaultJobManager) {
+func getJobsFromBackend() []jobpro.JobConfig {
 	endpoint := jobpro.BackendURLWoPath() + "/jobs/definitions"
 
 	jobConfigs, err := jobpro.FetchJobConfigs(endpoint)
@@ -56,11 +55,15 @@ func registerJobs(jobMgr *jobpro.DefaultJobManager) {
 		os.Exit(1)
 	}
 
-	logger.F("%d job configurations received from backend container", len(jobConfigs))
+	byts, err := json.MarshalIndent(jobConfigs, "", "  ")
+	logger.F("%d job configurations received from backend container.\n%s", len(jobConfigs), string(byts))
+	return jobConfigs
+}
 
-	// REGISTER JOBS FROM CONFIGS
-	for _, config := range jobConfigs {
-		// Register the job
+// registerJobs configures and registers job definitions with the job manager.
+// It attempts to load job configurations from an HTTP endpoint "/jobs/definitions" of the secondary container
+func registerJobs(jobMgr *jobpro.DefaultJobManager, configs []jobpro.JobConfig) {
+	for _, config := range configs {
 		jobpro.RegisterJob(config)
 	}
 

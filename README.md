@@ -31,8 +31,15 @@ A lightweight, flexible job scheduling and processing system written in Go.
 go get github.com/rohanthewiz/jobprocessor
 ```
 
+## Docker Build
+
+- Build - `docker build -t jpro_image -f Dockerfile ./`
+- Run - `docker run -it --rm -p 8080:8080 -e ENV=dev jpro_image`
+
+
 ### Usage
-**See `main.go` for a complete example**.
+**We are currently fetching jobs from a backend container** at "http://localhost:8080/jobs/definitions".
+Therefore backend container should come up first.
 
 ### Registering Jobs
 
