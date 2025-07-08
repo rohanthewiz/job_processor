@@ -20,7 +20,7 @@ type ScheduledJob struct {
 func NewScheduledJob(jc JobConfig) *ScheduledJob {
 	job := &ScheduledJob{
 		BaseJob: BaseJob{
-			id:          jc.ID,
+			id:          jc.Id,
 			name:        jc.Name,
 			freqType:    util.If(jc.IsPeriodic, Periodic, OneTime),
 			maxWorkTime: time.Duration(jc.MaxRunTime) * time.Second,
@@ -29,7 +29,14 @@ func NewScheduledJob(jc JobConfig) *ScheduledJob {
 	}
 
 	// Set the work function
-	job.BaseJob.workFunc = job.scheduledRun
+	if jc.TriggerEndpoint != "" {
+		job.BaseJob.workFunc = func(_ context.Context) (results string, err error) {
+			err = TriggerRemoteJob(jc)
+			return
+		}
+	} else {
+		job.BaseJob.workFunc = job.scheduledRun
+	}
 
 	return job
 }

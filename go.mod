@@ -8,10 +8,10 @@ require (
 	github.com/google/uuid v1.6.0
 	github.com/marcboeker/go-duckdb v1.8.5
 	github.com/robfig/cron/v3 v3.0.1
-	github.com/rohanthewiz/element v0.5.3-0.20250612015936-c89a3d46d76f
+	github.com/rohanthewiz/element v0.5.3-0.20250705120752-1d1179513658
 	github.com/rohanthewiz/logger v1.2.6-0.20250414041848-3a03f01e83a7
-	github.com/rohanthewiz/rweb v0.1.15-0.20250608012427-5f3c92508bc1
-	github.com/rohanthewiz/serr v1.2.3-0.20250410222410-8aecb9ee7b09
+	github.com/rohanthewiz/rweb v0.1.15-0.20250705101651-20d3af4f8c5e
+	github.com/rohanthewiz/serr v1.2.4
 )
 
 require (

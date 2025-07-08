@@ -49,7 +49,7 @@ func RunJob() error {
 	if err != nil {
 		return serr.Wrap(err, fmt.Sprintf("Failed to find job with name '%s'", JobName))
 	}
-	logger.Info(fmt.Sprintf("Found job with ID: %s", jobID))
+	logger.Info(fmt.Sprintf("Found job with Id: %s", jobID))
 
 	// Step 2: Get job information
 	job, err := client.getJob(jobID)

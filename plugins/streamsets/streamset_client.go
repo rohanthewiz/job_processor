@@ -128,7 +128,7 @@ func (c *StreamSetsClient) getJob(jobID string) (*JobData, error) {
 	if resp.StatusCode != http.StatusOK {
 		return nil, StreamSetsError{
 			Type:    "APIError",
-			Message: fmt.Sprintf("Job with ID '%s' not found: HTTP %d", jobID, resp.StatusCode),
+			Message: fmt.Sprintf("Job with Id '%s' not found: HTTP %d", jobID, resp.StatusCode),
 		}
 	}
 
@@ -146,7 +146,7 @@ type JobsList struct {
 	Jobs []JobData `json:"jobs"`
 }
 
-// findJobByName searches for a job by name and returns its ID
+// findJobByName searches for a job by name and returns its Id
 func (c *StreamSetsClient) findJobByName(jobName string) (string, error) {
 	logger.Info(fmt.Sprintf("Searching for job with name '%s'", jobName))
 
@@ -191,10 +191,10 @@ func (c *StreamSetsClient) findJobByName(jobName string) (string, error) {
 	for _, job := range searchResp.Data {
 		if job.Name == jobName {
 			// Extract jobID from the job data
-			// This assumes the job ID is available in the response
+			// This assumes the job Id is available in the response
 			// You might need to adjust this based on the actual API response structure
 			jobID := job.Id
-			logger.Info(fmt.Sprintf("Found job with name '%s', ID: %s, Pipeline: %s", jobName, jobID, job.PipelineName))
+			logger.Info(fmt.Sprintf("Found job with name '%s', Id: %s, Pipeline: %s", jobName, jobID, job.PipelineName))
 			return jobID, nil
 		}
 	}

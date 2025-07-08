@@ -2,6 +2,7 @@ package jobpro
 
 import (
 	"encoding/json"
+	"fmt"
 	"io"
 	"log"
 	"net/http"
@@ -11,16 +12,28 @@ import (
 	"github.com/rohanthewiz/serr"
 )
 
+const backendPort = "8080" // how to get to the backend container
+
 type JobConfig struct {
-	ID          string
-	Name        string
-	IsPeriodic  bool
-	Schedule    string
-	Priority    int // Priority is not yet supported
-	MaxRunTime  int
-	RetryCount  int  // RetryCount is not yet supported
-	AutoStart   bool // Whether to automatically start the job after creation (default: true)
-	JobFunction func() error
+	Id         string
+	Name       string
+	IsPeriodic bool
+	// The schedule "*/30 * * * * *" translates to: Every 30 seconds.
+	// Fields:
+	// First */30 (Seconds field): This indicates that the job should run every 30 seconds. The * means "every possible value" for that field, and /30 means "every 30 units" within that range.
+	// Second * (Minutes field): Every minute.
+	// Third * (Hours field): Every hour.
+	// Fourth * (Day of Month field): Every day of the month.
+	// Fifth * (Month field): Every month.
+	// Sixth * (Day of Week field): Every day of the week.
+	Schedule   string
+	Priority   int // Priority is not yet supported
+	MaxRunTime int
+	RetryCount int  // RetryCount is not yet supported
+	AutoStart  bool // Whether to automatically start the job after creation (default: true)
+	// We can use either the TriggerEndpoint or the JobFunction.
+	TriggerEndpoint string
+	JobFunction     func() error // no longer used
 }
 
 var jobCfgs = &jobConfigs{}
@@ -34,7 +47,7 @@ type jobConfigs struct {
 // Example job configurations
 //
 //	RegisterJob(JobConfig{
-//		ID:         "job1",
+//		Id:         "job1",
 //		Name:       "Example Job 1",
 //		IsPeriodic: true,
 //		Schedule:   "0 0 * * * *", // Every hour
@@ -42,7 +55,7 @@ type jobConfigs struct {
 //	})
 //
 //	RegisterJob(JobConfig{ // One-time job
-//		ID:         "job2",
+//		Id:         "job2",
 //		Name:       "Example Job 2",
 //		IsPeriodic: false,
 //		Schedule:   "<time.Time>",
@@ -65,6 +78,12 @@ func (jc *jobConfigs) getJobConfigs() []JobConfig {
 	return jc.jobCfgs
 }
 
+type JobsResponse struct {
+	Success bool        `json:"success"`
+	Error   string      `json:"error"`
+	Jobs    []JobConfig `json:"jobs"`
+}
+
 // FetchJobConfigs fetches job configurations from the specified endpoint
 func FetchJobConfigs(endpoint string) ([]JobConfig, error) {
 	resp, err := http.Get(endpoint)
@@ -82,12 +101,18 @@ func FetchJobConfigs(endpoint string) ([]JobConfig, error) {
 		return nil, serr.Wrap(err, "Failed to read job configs response")
 	}
 
-	var configs []JobConfig
-	if err := json.Unmarshal(body, &configs); err != nil {
+	var results JobsResponse
+	logger.Debug("Jobs response from Backend:", string(body))
+
+	if err := json.Unmarshal(body, &results); err != nil {
 		return nil, serr.Wrap(err, "Failed to parse job configs")
 	}
 
-	return configs, nil
+	if !results.Success {
+		return nil, serr.New("Fetch job configs returned failure", "error", results.Error)
+	}
+
+	return results.Jobs, nil
 }
 
 func LoadJobs(mgr JobMgr) error {
@@ -119,4 +144,30 @@ func setupJob(mgr JobMgr, jc JobConfig) error {
 	}
 
 	return nil
+}
+
+// TriggerRemoteJob will trigger the job endpoint given by the JobConfig
+func TriggerRemoteJob(jc JobConfig) error {
+	if jc.TriggerEndpoint == "" {
+		return serr.New("Trigger endpoint is empty")
+	}
+
+	endpoint := BackendURLWoPath() + jc.TriggerEndpoint
+
+	resp, err := http.Get(endpoint)
+	if err != nil {
+		return serr.Wrap(err, "Failed to trigger remote job")
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode >= 400 {
+		return serr.F("Failed to trigger remote job. Bad status %s", resp.Status)
+	}
+	// We don't care about the response body
+
+	return nil
+}
+
+func BackendURLWoPath() (urlWoPath string) {
+	return fmt.Sprintf("http://localhost:%s", backendPort)
 }

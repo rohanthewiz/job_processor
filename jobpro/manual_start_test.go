@@ -34,7 +34,7 @@ func TestManualStartJob(t *testing.T) {
 		{
 			name: "Manual start job (AutoStart=false, no schedule)",
 			config: JobConfig{
-				ID:         "manual1",
+				Id:         "manual1",
 				Name:       "Manual Job",
 				IsPeriodic: false,
 				Schedule:   "",
@@ -50,7 +50,7 @@ func TestManualStartJob(t *testing.T) {
 		{
 			name: "Auto-start job (AutoStart=true, no schedule)",
 			config: JobConfig{
-				ID:         "auto1",
+				Id:         "auto1",
 				Name:       "Auto Job",
 				IsPeriodic: false,
 				Schedule:   "",
@@ -66,7 +66,7 @@ func TestManualStartJob(t *testing.T) {
 		{
 			name: "Scheduled job (AutoStart=true, with schedule)",
 			config: JobConfig{
-				ID:         "scheduled1",
+				Id:         "scheduled1",
 				Name:       "Scheduled Job",
 				IsPeriodic: false,
 				Schedule:   "in 100ms",
@@ -86,14 +86,14 @@ func TestManualStartJob(t *testing.T) {
 		t.Run(tt.name+"_setup", func(t *testing.T) {
 			// Clear the global job configs before registering
 			jobCfgs = &jobConfigs{jobCfgs: []JobConfig{}}
-			
+
 			// Register the job
 			RegisterJob(tt.config)
 
 			// Setup the job in the manager
 			err := setupJob(mgr, tt.config)
 			if err != nil {
-				t.Errorf("Failed to setup job %s: %v", tt.config.ID, err)
+				t.Errorf("Failed to setup job %s: %v", tt.config.Id, err)
 			}
 		})
 	}
@@ -176,7 +176,7 @@ func TestManualJobWithSchedule(t *testing.T) {
 
 	// Register a manual job with a future schedule
 	config := JobConfig{
-		ID:         "manual_scheduled",
+		Id:         "manual_scheduled",
 		Name:       "Manual Scheduled Job",
 		IsPeriodic: false,
 		Schedule:   "in 500ms",
@@ -234,7 +234,7 @@ func TestJobStatusTransitions(t *testing.T) {
 
 	// Register a manual job
 	config := JobConfig{
-		ID:         "status_test",
+		Id:         "status_test",
 		Name:       "Status Test Job",
 		IsPeriodic: false,
 		Schedule:   "",
@@ -310,7 +310,7 @@ func TestManualJobPersistence(t *testing.T) {
 
 	// Register a manual job
 	config := JobConfig{
-		ID:         "persist_test",
+		Id:         "persist_test",
 		Name:       "Persistence Test Job",
 		IsPeriodic: false,
 		Schedule:   "",
@@ -364,7 +364,7 @@ func TestManualJobPersistence(t *testing.T) {
 	// Check that the job still exists and has the correct status
 	jobDef := jobs[0]
 	if jobDef.JobID != "persist_test" {
-		t.Errorf("Expected job ID 'persist_test', got %s", jobDef.JobID)
+		t.Errorf("Expected job Id 'persist_test', got %s", jobDef.JobID)
 	}
 	if jobDef.Status != StatusCreated {
 		t.Errorf("Expected job status to be %s after restart, got %s", StatusCreated, jobDef.Status)

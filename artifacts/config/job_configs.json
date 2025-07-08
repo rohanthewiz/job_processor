@@ -7,7 +7,8 @@
     "Priority": 0,
     "MaxRunTime": 0,
     "RetryCount": 0,
-    "AutoStart": true
+    "AutoStart": true,
+    "TriggerEndpoint": ""
   },
   {
     "ID": "periodicJob2",
@@ -17,7 +18,8 @@
     "Priority": 0,
     "MaxRunTime": 0,
     "RetryCount": 0,
-    "AutoStart": true
+    "AutoStart": true,
+    "TriggerEndpoint": ""
   },
   {
     "ID": "onetimeJob1",
@@ -27,7 +29,8 @@
     "Priority": 0,
     "MaxRunTime": 0,
     "RetryCount": 0,
-    "AutoStart": true
+    "AutoStart": true,
+    "TriggerEndpoint": ""
   },
   {
     "ID": "manualJob",

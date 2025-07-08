@@ -62,7 +62,7 @@ type JobDef struct {
 
 // JobResult contains the outcome of a job execution
 type JobResult struct {
-	JobID      string        // ID of the job
+	JobID      string        // Id of the job
 	StartTime  time.Time     // When the job started
 	EndTime    time.Time     // When the job completed
 	Duration   time.Duration // How long it took
@@ -75,7 +75,7 @@ type JobResult struct {
 type JobStore interface {
 	// SaveJob persists a job definition
 	SaveJob(job JobDef) error
-	// GetJob retrieves a job definition by ID
+	// GetJob retrieves a job definition by Id
 	GetJob(id string) (JobDef, error)
 	// ListJobs retrieves all job definitions with optional filters
 	ListJobs(status JobStatus, freqType FreqType) ([]JobDef, error)

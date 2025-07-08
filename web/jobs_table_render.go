@@ -31,8 +31,8 @@ const stopWatchEmoji = `<svg width="16" height="16" viewBox="0 0 16 16" fill="no
 // renderJobsTable renders the full jobs table page
 func renderJobsTable(jobs []jobpro.JobRun, resultCounts map[string]int) string {
 	b := element.NewBuilder()
-	cols := []string{"Job", "ID", "Freq", "Status", "Created", "Updated",
-		"Run&nbsp;ID", "Run Start", "Duration", "Status", "Error", "Controls"}
+	cols := []string{"Job", "Id", "Freq", "Status", "Created", "Updated",
+		"Run&nbsp;Id", "Run Start", "Duration", "Status", "Error", "Controls"}
 
 	b.Html().R(
 		b.Head().R(

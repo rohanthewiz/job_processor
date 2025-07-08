@@ -166,7 +166,7 @@ func (m *DefaultJobManager) SetupJob(job Job, schedule string) (string, error) {
 
 	// Check if job already exists
 	if _, exists := m.jobs[jobID]; exists {
-		return "", serr.F("job with ID %s already exists", jobID)
+		return "", serr.F("job with Id %s already exists", jobID)
 	}
 
 	// Determine next run time

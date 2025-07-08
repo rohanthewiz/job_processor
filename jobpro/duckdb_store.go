@@ -106,7 +106,7 @@ func (s *DuckDBStore) SaveJob(job JobDef) error {
 	return nil
 }
 
-// GetJob retrieves a job definition by ID
+// GetJob retrieves a job definition by Id
 func (s *DuckDBStore) GetJob(id string) (JobDef, error) {
 	row := s.db.QueryRow(`
 		SELECT job_id, job_name, schedule_type, schedule, 
