@@ -6,7 +6,7 @@ import (
 	"job_processor/util"
 	"time"
 
-	_ "github.com/marcboeker/go-duckdb"
+	_ "github.com/marcboeker/go-duckdb/v2"
 	"github.com/rohanthewiz/serr"
 )
 
@@ -27,7 +27,7 @@ func NewDuckDBStore(dbPath string) (*DuckDBStore, error) {
 
 	store := &DuckDBStore{db: db}
 	if err := store.initialize(); err != nil {
-		db.Close()
+		_ = db.Close()
 		return nil, err
 	}
 

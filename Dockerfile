@@ -1,24 +1,34 @@
-FROM golang:1.24-alpine3.21 AS buildstg
+
+FROM golang:1.24-bookworm AS builder
 WORKDIR /root
 ADD . .
 
+# Install libpcap development files
+RUN apt-get update
+
 RUN go env
 
-RUN go build -o app
+RUN go mod tidy
 
-FROM alpine:3.21
+RUN CGO_ENABLED=1 GOOS=linux go build -o app
+
+FROM ubuntu:24.04
+
+#ARG ENV_NAME
+#ENV APP_ENV=$ENV_NAME
+
+RUN  apt-get -y update  &&  apt-get -y install ca-certificates
+
+#RUN mkdir -p /etc/pki/tls/certs
+#RUN ln -s /etc/ssl/certs/ca-certificates.crt /etc/pki/tls/certs/ca-bundle.crt
 
 # Create a non-root user
-RUN addgroup -g 1001 jpro
-RUN adduser -D -u 1001 -G jpro jpro
+RUN groupadd appuser -g 1001 && useradd -u 1001 -g 1001 -m -d /home/appuser appuser
 
-WORKDIR /home/jpro
+WORKDIR /home/appuser
 
-COPY --from=buildstg /root/app /home/jpro/app
-COPY --from=buildstg /root/cfg /home/jpro/cfg
-
-RUN chown -R jpro:jpro /home/jpro/
-USER jpro
+COPY --from=builder /root/app /home/appuser/app
+RUN chmod +x /home/appuser/app
 
 EXPOSE 8000
 ENTRYPOINT [ "./app" ]

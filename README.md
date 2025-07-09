@@ -34,7 +34,7 @@ go get github.com/rohanthewiz/jobprocessor
 ## Docker Build
 
 - Build - `docker build -t jpro_image -f Dockerfile ./`
-- Run - `docker run -it --rm -p 8080:8080 -e ENV=dev jpro_image`
+- Run - `docker run -it --rm -p 8000:8000 -e ENV=dev jpro_image`
 
 
 ### Usage

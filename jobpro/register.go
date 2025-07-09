@@ -88,7 +88,8 @@ type JobsResponse struct {
 func FetchJobConfigs(endpoint string) ([]JobConfig, error) {
 	resp, err := http.Get(endpoint)
 	if err != nil {
-		return nil, serr.Wrap(err, "Failed to fetch job configs")
+		return nil, serr.Wrap(err, "Failed to fetch job configs",
+			"hint", "Is the backend server running at localhost:8080?")
 	}
 	defer resp.Body.Close()
 
