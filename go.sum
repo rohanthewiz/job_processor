@@ -53,6 +53,8 @@ github.com/rohanthewiz/element v0.5.3-0.20250705120752-1d1179513658 h1:N3bT3rTKY
 github.com/rohanthewiz/element v0.5.3-0.20250705120752-1d1179513658/go.mod h1:cA57S9UGRSaWrMmGC1M+8QCQw/y8kgODiBB0KEwIyzo=
 github.com/rohanthewiz/logger v1.2.6-0.20250414041848-3a03f01e83a7 h1:muS5sAUXjw9/zLkReu83VYp+CihrbI10JFZLphUeFpM=
 github.com/rohanthewiz/logger v1.2.6-0.20250414041848-3a03f01e83a7/go.mod h1:1A2v/8q3ue3vJ5mguli3gsyhWrlXZGWrVocdEv1svXE=
+github.com/rohanthewiz/logger v1.2.6-0.20250709003901-483ac9564730 h1:ukZN4oCvbsQ1CUuMrFcl+qLNi7M+WYfJclF/eb8ErVY=
+github.com/rohanthewiz/logger v1.2.6-0.20250709003901-483ac9564730/go.mod h1:1A2v/8q3ue3vJ5mguli3gsyhWrlXZGWrVocdEv1svXE=
 github.com/rohanthewiz/rweb v0.1.15-0.20250424002240-948f5f48a8c9/go.mod h1:Ye+1p+Emvyp3TvpmqPWUrTaLWPBbsc4F5gvfI4dz2CI=
 github.com/rohanthewiz/rweb v0.1.15-0.20250509013023-82d70f903f8a h1:qWCuJMUeWFAPF6FigsNO/5damoNK7lRotrsOZkhCZts=
 github.com/rohanthewiz/rweb v0.1.15-0.20250509013023-82d70f903f8a/go.mod h1:Ye+1p+Emvyp3TvpmqPWUrTaLWPBbsc4F5gvfI4dz2CI=

@@ -9,7 +9,7 @@ require (
 	github.com/marcboeker/go-duckdb v1.8.5
 	github.com/robfig/cron/v3 v3.0.1
 	github.com/rohanthewiz/element v0.5.3-0.20250705120752-1d1179513658
-	github.com/rohanthewiz/logger v1.2.6-0.20250414041848-3a03f01e83a7
+	github.com/rohanthewiz/logger v1.2.6-0.20250709003901-483ac9564730
 	github.com/rohanthewiz/rweb v0.1.15-0.20250705101651-20d3af4f8c5e
 	github.com/rohanthewiz/serr v1.2.4
 )

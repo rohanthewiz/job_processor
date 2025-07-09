@@ -102,7 +102,7 @@ func FetchJobConfigs(endpoint string) ([]JobConfig, error) {
 	}
 
 	var results JobsResponse
-	logger.Debug("Jobs response from Backend:", string(body))
+	logger.Info("Jobs response from Backend: " + string(body))
 
 	if err := json.Unmarshal(body, &results); err != nil {
 		return nil, serr.Wrap(err, "Failed to parse job configs")

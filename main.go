@@ -35,7 +35,7 @@ func main() {
 	go web.StartWebServer(jobMgr)
 
 	// Give the backend server a moment to start
-	logger.Info("Giving the backend server a head start...")
+	logger.F("Giving the backend server a %s head start...", 10*time.Second)
 	time.Sleep(10 * time.Second)
 
 	// Fetch and Register jobs
@@ -56,7 +56,9 @@ func getJobsFromBackend() []jobpro.JobConfig {
 	}
 
 	byts, err := json.MarshalIndent(jobConfigs, "", "  ")
-	logger.F("%d job configurations received from backend container.\n%s", len(jobConfigs), string(byts))
+	logger.F("%d job configuration(s) received from backend container.\n", len(jobConfigs))
+	logger.F("Received configs:\n%s", string(byts))
+
 	return jobConfigs
 }
 
